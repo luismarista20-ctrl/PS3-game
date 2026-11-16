@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Aventura Parkour: Moranguinho &amp; Mundo Gloob</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fredoka', sans-serif;
+      background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 100%);
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .cartoon-border {
+      border: 4px solid #1e1b4b;
+      box-shadow: 0 6px 0 #1e1b4b;
+    }
+    .cartoon-btn {
+      border: 3px solid #1e1b4b;
+      box-shadow: 0 5px 0 #1e1b4b;
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+    .cartoon-btn:active, .cartoon-btn.pressed {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #1e1b4b;
+    }
+    .char-card {
+      border: 3px solid #1e1b4b;
+      box-shadow: 0 4px 0 #1e1b4b;
+      transition: all 0.15s ease;
+    }
+    .char-card.selected {
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 8px 0 #1e1b4b;
+      background-color: #fef08a;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float {
+      animation: floatSlow 2.6s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD Overlay (Visible during gameplay) -->
+    <div id="hud" class="hidden pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-3 sm:p-5">
+      <!-- Top Bar: Apples, Character Badge, Sound & Restart -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Apples Counter -->
+          <div class="bg-white/95 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl cartoon-border flex items-center gap-2">
+            <span class="text-xl sm:text-2xl">🍎</span>
+            <span id="apple-count" class="text-lg sm:text-2xl font-bold text-rose-600">0 / 12</span>
+          </div>
+          <!-- Active Character Pill -->
+          <div class="hidden sm:flex bg-amber-300/95 px-3 py-1.5 rounded-2xl cartoon-border items-center gap-2">
+            <span id="hud-char-emoji" class="text-xl">🍓</span>
+            <span id="hud-char-name" class="text-base font-bold text-indigo-950">Moranguinho</span>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="hidden md:flex flex-col items-center w-56 bg-white/90 px-3 py-1.5 rounded-2xl cartoon-border">
+          <div class="flex justify-between w-full text-xs font-bold text-indigo-950 mb-1">
+            <span>Início</span>
+            <span>🏁 Aqui Vence!</span>
+          </div>
+          <div class="w-full h-3 bg-sky-200 rounded-full overflow-hidden border-2 border-indigo-950">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500 w-0 transition-all duration-100"></div>
+          </div>
+        </div>
+
+        <!-- Sound & Menu Buttons -->
+        <div class="pointer-events-auto flex items-center gap-2">
+          <button id="mute-btn" class="bg-yellow-300 hover:bg-yellow-200 text-indigo-950 font-bold w-11 h-11 sm:w-12 sm:h-12 rounded-2xl cartoon-btn flex items-center justify-center text-xl" title="Som">
+            🔊
+          </button>
+          <button id="home-btn" class="bg-white hover:bg-slate-100 text-indigo-950 font-bold px-3 h-11 sm:h-12 rounded-2xl cartoon-btn flex items-center justify-center text-sm sm:text-base">
+            Menu
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Bar: Vidas (Bottom-Left) & On-Screen Controls (Bottom-Right) matching the sketch -->
+      <div class="flex items-end justify-between w-full">
+        <!-- Vidas (Lives) in Bottom-Left like the drawing -->
+        <div class="bg-white/95 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl cartoon-border flex flex-col items-start">
+          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-950 mb-0.5">Vidas</span>
+          <div id="lives-display" class="flex items-center gap-1 text-xl sm:text-2xl">
+            ❤️❤️❤️
+          </div>
+        </div>
+
+        <!-- On-Screen Touch / Click Controls in Bottom-Right like the drawing -->
+        <div class="pointer-events-auto flex items-end gap-2 sm:gap-3">
+          <!-- Move Left / Right ("Anda") -->
+          <div class="flex flex-col items-center">
+            <span class="bg-white/90 text-indigo-950 text-xs font-bold px-2.5 py-0.5 rounded-full border-2 border-indigo-950 mb-1 shadow-sm">
+              Anda
+            </span>
+            <div class="flex gap-2">
+              <button id="btn-left" aria-label="Andar para esquerda" class="bg-amber-300 active:bg-amber-400 text-indigo-950 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl cartoon-btn flex items-center justify-center text-2xl sm:text-3xl font-bold">
+                ⬅️
+              </button>
+              <button id="btn-right" aria-label="Andar para direita" class="bg-amber-300 active:bg-amber-400 text-indigo-950 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl cartoon-btn flex items-center justify-center text-2xl sm:text-3xl font-bold">
+                ➡️
+              </button>
+            </div>
+          </div>
+
+          <!-- Jump Button ("A / Pular") -->
+          <div class="flex flex-col items-center ml-1 sm:ml-2">
+            <span class="bg-rose-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full border-2 border-indigo-950 mb-1 shadow-sm">
+              Pular
+            </span>
+            <button id="btn-jump" aria-label="Pular" class="bg-emerald-400 active:bg-emerald-500 text-indigo-950 w-16 h-16 sm:w-20 sm:h-20 rounded-full cartoon-btn flex flex-col items-center justify-center leading-none">
+              <span class="text-xl sm:text-2xl font-extrabold">A</span>
+              <span class="text-[11px] sm:text-xs font-bold">PULA</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start / Character Selection Screen -->
+    <div id="start-screen" class="fixed inset-0 z-20 flex items-center justify-center p-3 sm:p-6 bg-sky-900/40 backdrop-blur-xs">
+      <div class="bg-white max-w-2xl w-full rounded-3xl cartoon-border p-5 sm:p-7 text-center relative overflow-y-auto max-h-[95vh]">
+        <!-- Gloob-inspired colorful header badge -->
+        <div class="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 via-amber-400 to-sky-500 text-white font-bold px-4 py-1 rounded-full border-2 border-indigo-950 text-xs sm:text-sm mb-2 shadow-sm">
+          <span>✨ MUNDO GLOOB &amp; MUNDO TORAJO ✨</span>
+        </div>
+
+        <h1 class="text-2xl sm:text-4xl font-extrabold text-indigo-950 tracking-tight mb-1">
+          🍓 Parkour das Maçãs! 🍎
+        </h1>
+        <p class="text-slate-600 text-sm sm:text-base mb-4">
+          Ajude a <strong>Moranguinho</strong> (ou seus amigos do desenho!) a pegar as maçãs, pular os espinhos e o laser, e chegar até a linha de chegada!
+        </p>
+
+        <!-- Character Selection Grid -->
+        <div class="mb-5">
+          <p class="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-900 mb-2.5">
+            Escolha seu personagem:
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3" id="character-grid">
+            <button type="button" data-char="moranguinho" class="char-card selected bg-rose-100 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center cursor-pointer">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-rose-500 border-3 border-indigo-950 flex items-center justify-center text-2xl sm:text-3xl mb-1 shadow-inner">
+                🍓
+              </div>
+              <span class="font-bold text-indigo-950 text-sm sm:text-base">Moranguinho</span>
+              <span class="text-[11px] text-rose-700 font-semibold">Super Ágil</span>
+            </button>
+
+            <button type="button" data-char="pessy" class="char-card bg-pink-50 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center cursor-pointer">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-pink-400 border-3 border-indigo-950 flex items-center justify-center text-2xl sm:text-3xl mb-1 shadow-inner">
+                🍑
+              </div>
+              <span class="font-bold text-indigo-950 text-sm sm:text-base">Pessy</span>
+              <span class="text-[11px] text-pink-700 font-semibold">Salto Alegre</span>
+            </button>
+
+            <button type="button" data-char="zulmi" class="char-card bg-sky-50 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center cursor-pointer">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-sky-400 border-3 border-indigo-950 flex items-center justify-center text-2xl sm:text-3xl mb-1 shadow-inner">
+                🫐
+              </div>
+              <span class="font-bold text-indigo-950 text-sm sm:text-base">Zulmi</span>
+              <span class="text-[11px] text-sky-700 font-semibold">Exploradora</span>
+            </button>
+
+            <button type="button" data-char="torajo" class="char-card bg-emerald-50 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center cursor-pointer">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-500 border-3 border-indigo-950 flex items-center justify-center text-2xl sm:text-3xl mb-1 shadow-inner">
+                🍏
+              </div>
+              <span class="font-bold text-indigo-950 text-sm sm:text-base">Torajo</span>
+              <span class="text-[11px] text-emerald-700 font-semibold">Mestre Maçã</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mini Visual Legend matching the drawing -->
+        <div class="grid grid-cols-3 gap-2 bg-sky-50 p-3 rounded-2xl border-2 border-indigo-950/20 mb-5 text-xs sm:text-sm">
+          <div class="flex flex-col items-center">
+            <span class="text-xl mb-0.5">🍎</span>
+            <span class="font-bold text-indigo-950">Pegue Maçãs</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span class="text-xl mb-0.5">🔺⚡</span>
+            <span class="font-bold text-rose-600">Evite Espinhos e Laser</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span class="text-xl mb-0.5">🏁</span>
+            <span class="font-bold text-emerald-700">Chegue em "Aqui Vence!"</span>
+          </div>
+        </div>
+
+        <button id="start-btn" class="w-full sm:w-auto bg-gradient-to-b from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-indigo-950 font-extrabold text-xl sm:text-2xl px-10 py-3.5 rounded-2xl cartoon-btn cursor-pointer">
+          ▶️ JOGAR AGORA!
+        </button>
+
+        <p class="text-xs text-slate-500 mt-3">
+          Teclado: <strong>Setas / A D</strong> para andar e <strong>Espaço / W / Seta Cima</strong> para pular (ou use os botões na tela).
+        </p>
+      </div>
+    </div>
+
+    <!-- Victory / Game Over Modal -->
+    <div id="end-screen" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-indigo-950/55 backdrop-blur-xs">
+      <div class="bg-white max-w-md w-full rounded-3xl cartoon-border p-6 text-center">
+        <div id="end-emoji" class="text-6xl mb-2 animate-float">🏆</div>
+        <h2 id="end-title" class="text-3xl sm:text-4xl font-extrabold text-indigo-950 mb-2">
+          AQUI VENCE!
+        </h2>
+        <p id="end-subtitle" class="text-slate-600 text-base mb-5">
+          Você completou o parkour e cruzou a linha de chegada!
+        </p>
+
+        <div class="bg-amber-100 rounded-2xl border-2 border-indigo-950 p-4 mb-6 flex justify-around">
+          <div>
+            <div class="text-xs font-bold uppercase text-indigo-900">Maçãs Coletadas</div>
+            <div id="end-apples" class="text-2xl font-extrabold text-rose-600">12 / 12 🍎</div>
+          </div>
+          <div class="w-0.5 bg-indigo-950/20"></div>
+          <div>
+            <div class="text-xs font-bold uppercase text-indigo-900">Vidas Restantes</div>
+            <div id="end-lives" class="text-2xl font-extrabold text-emerald-600">3 ❤️</div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <button id="replay-btn" class="bg-emerald-400 hover:bg-emerald-300 text-indigo-950 font-extrabold text-lg px-6 py-3 rounded-2xl cartoon-btn cursor-pointer">
+            🔄 Jogar de Novo
+          </button>
+          <button id="change-char-btn" class="bg-amber-300 hover:bg-amber-200 text-indigo-950 font-bold text-lg px-5 py-3 rounded-2xl cartoon-btn cursor-pointer">
+            🍓 Trocar Personagem
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. AUDIO SYNTHESIZER (Web Audio API)
+    // ==========================================
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type, duration, vol = 0.15, slideFreq = null) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideFreq) {
+          osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+        }
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      jump() {
+        this.playTone(280, 'sine', 0.22, 0.18, 620);
+      }
+
+      collectApple() {
+        this.playTone(587.33, 'triangle', 0.1, 0.18); // D5
+        setTimeout(() => this.playTone(880, 'triangle', 0.18, 0.18), 75); // A5
+      }
+
+      hurt() {
+        this.playTone(220, 'sawtooth', 0.28, 0.2, 75);
+      }
+
+      win() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => this.playTone(n, 'triangle', 0.25, 0.2), idx * 110);
+        });
+      }
+    }
+
+    const sfx = new SoundFX();
+
+    // ==========================================
+    // 2. CHARACTER DEFINITIONS
+    // ==========================================
+    const CHARACTERS = {
+      moranguinho: {
+        name: 'Moranguinho',
+        emoji: '🍓',
+        hatColor: '#f43f5e',
+        hatDots: '#fde047',
+        leafColor: '#22c55e',
+        outfitColor: '#fb7185',
+        skinColor: '#fed7aa',
+        hairColor: '#be123c',
+        speed: 5.4,
+        jumpForce: -13.6
+      },
+      pessy: {
+        name: 'Pessy',
+        emoji: '🍑',
+        hatColor: '#fb923c',
+        hatDots: '#fef08a',
+        leafColor: '#16a34a',
+        outfitColor: '#f472b6',
+        skinColor: '#ffedd5',
+        hairColor: '#ea580c',
+        speed: 5.2,
+        jumpForce: -14.0
+      },
+      zulmi: {
+        name: 'Zulmi',
+        emoji: '🫐',
+        hatColor: '#3b82f6',
+        hatDots: '#93c5fd',
+        leafColor: '#10b981',
+        outfitColor: '#60a5fa',
+        skinColor: '#fed7aa',
+        hairColor: '#1d4ed8',
+        speed: 5.5,
+        jumpForce: -13.5
+      },
+      torajo: {
+        name: 'Torajo',
+        emoji: '🍏',
+        hatColor: '#22c55e',
+        hatDots: '#bbf7d0',
+        leafColor: '#15803d',
+        outfitColor: '#4ade80',
+        skinColor: '#fed7aa',
+        hairColor: '#166534',
+        speed: 5.3,
+        jumpForce: -13.8
+      }
+    };
+
+    // ==========================================
+    // 3. CANVAS & GAME STATE SETUP
+    // ==========================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const state = {
+      screen: 'start', // 'start' | 'playing' | 'win' | 'gameover'
+      selectedChar: 'moranguinho',
+      lives: 3,
+      applesCollected: 0,
+      totalApples: 12,
+      cameraX: 0,
+      invulnerableTimer: 0,
+      frameCount: 0,
+      particles: [],
+      floatingTexts: [],
+      clouds: []
+    };
+
+    // Initialize decorative background clouds
+    for (let i = 0; i < 14; i++) {
+      state.clouds.push({
+        x: i * 380 + Math.random() * 150,
+        y: 50 + Math.random() * 170,
+        scale: 0.7 + Math.random() * 0.65,
+        speed: 0.2 + Math.random() * 0.25
+      });
+    }
+
+    // Player object
+    const player = {
+      x: 110,
+      y: 260,
+      w: 40,
+      h: 52,
+      vx: 0,
+      vy: 0,
+      grounded: false,
+      facing: 1, // 1 = right, -1 = left
+      walkCycle: 0,
+      checkpointX: 110,
+      checkpointY: 240
+    };
+
+    // Input state
+    const keys = {
+      left: false,
+      right: false,
+      jump: false
+    };
+
+    // ==========================================
+    // 4. PARKOUR LEVEL DESIGN (Inspired by Sketch)
+    // ==========================================
+    // Baseline ground height is relative to virtual floor Y = 460
+    const VIRTUAL_FLOOR = 460;
+    const LEVEL_END_X = 4150;
+
+    let platforms = [];
+    let spikes = [];
+    let lasers = [];
+    let apples = [];
+    let signs = [];
+    let finishLine = {};
+
+    function buildLevel() {
+      platforms = [
+        // 1. Starting Safe Meadow Platform
+        { x: 0, y: VIRTUAL_FLOOR, w: 540, h: 240, color: '#4ade80', dirt: '#d97706' },
+        // 2. First Parkour Step ("Pular")
+        { x: 650, y: VIRTUAL_FLOOR - 45, w: 230, h: 285, color: '#fb7185', dirt: '#be123c' },
+        // 3. Elevated Berry Bridge
+        { x: 980, y: VIRTUAL_FLOOR - 105, w: 240, h: 345, color: '#38bdf8', dirt: '#0369a1' },
+        // 4. Spike Platform ("Espinhos!")
+        { x: 1330, y: VIRTUAL_FLOOR - 35, w: 460, h: 275, color: '#4ade80', dirt: '#d97706' },
+        // 5. Floating Stepping Blocks
+        { x: 1890, y: VIRTUAL_FLOOR - 90, w: 150, h: 36, color: '#facc15', dirt: '#ca8a04' },
+        { x: 2130, y: VIRTUAL_FLOOR - 145, w: 160, h: 36, color: '#facc15', dirt: '#ca8a04' },
+        // 6. Laser Gauntlet Platform ("Laser que mata!")
+        { x: 2390, y: VIRTUAL_FLOOR - 40, w: 640, h: 280, color: '#c084fc', dirt: '#6b21a8' },
+        // 7. Final Parkour Jumps before Goal
+        { x: 3140, y: VIRTUAL_FLOOR - 85, w: 180, h: 325, color: '#fb7185', dirt: '#be123c' },
+        { x: 3420, y: VIRTUAL_FLOOR - 135, w: 180, h: 375, color: '#38bdf8', dirt: '#0369a1' },
+        // 8. Checkered Finish Platform ("Aqui vence!")
+        { x: 3710, y: VIRTUAL_FLOOR - 60, w: 520, h: 300, color: '#4ade80', dirt: '#d97706', isGoal: true }
+      ];
+
+      // Triangular Spikes ("Espinha / Espinhos")
+      spikes = [
+        { x: 1510, y: VIRTUAL_FLOOR - 35, count: 3, w: 26, h: 26 },
+        { x: 2620, y: VIRTUAL_FLOOR - 40, count: 2, w: 26, h: 26 }
+      ];
+
+      // Pulsing Deadly Red Lasers ("Laser que mata")
+      lasers = [
+        {
+          x: 2510,
+          y: VIRTUAL_FLOOR - 220,
+          h: 180,
+          cycleOffset: 0,
+          period: 170 // frames per cycle
+        },
+        {
+          x: 2870,
+          y: VIRTUAL_FLOOR - 220,
+          h: 180,
+          cycleOffset: 85,
+          period: 170
+        }
+      ];
+
+      // Collectible Juicy Apples ("Maçãs")
+      apples = [
+        { x: 290, y: VIRTUAL_FLOOR - 52, collected: false },
+        { x: 420, y: VIRTUAL_FLOOR - 52, collected: false },
+        { x: 760, y: VIRTUAL_FLOOR - 98, collected: false },
+        { x: 1095, y: VIRTUAL_FLOOR - 160, collected: false },
+        { x: 1545, y: VIRTUAL_FLOOR - 115, collected: false }, // Above spikes
+        { x: 1965, y: VIRTUAL_FLOOR - 142, collected: false },
+        { x: 2210, y: VIRTUAL_FLOOR - 198, collected: false },
+        { x: 2510, y: VIRTUAL_FLOOR - 95, collected: false },  // Timed with laser 1
+        { x: 2740, y: VIRTUAL_FLOOR - 95, collected: false },
+        { x: 3230, y: VIRTUAL_FLOOR - 140, collected: false },
+        { x: 3510, y: VIRTUAL_FLOOR - 190, collected: false },
+        { x: 3820, y: VIRTUAL_FLOOR - 115, collected: false }
+      ];
+
+      // Hand-drawn style wooden/cartoon signs matching the sketch labels!
+      signs = [
+        { x: 470, y: VIRTUAL_FLOOR, text: 'Pular! ⬆️', bg: '#fef08a' },
+        { x: 1380, y: VIRTUAL_FLOOR - 35, text: 'Espinhos! ⚠️', bg: '#fecdd3' },
+        { x: 2425, y: VIRTUAL_FLOOR - 40, text: 'Laser que mata! ⚡', bg: '#fecaca' },
+        { x: 3760, y: VIRTUAL_FLOOR - 60, text: 'Aqui vence! 🏁', bg: '#bbf7d0' }
+      ];
+
+      finishLine = {
+        x: 3930,
+        y: VIRTUAL_FLOOR - 60,
+        w: 56,
+        h: 150
+      };
+
+      state.totalApples = apples.length;
+    }
+
+    // ==========================================
+    // 5. UI & CONTROLS BINDINGS
+    // ==========================================
+    const startScreen = document.getElementById('start-screen');
+    const endScreen = document.getElementById('end-screen');
+    const hud = document.getElementById('hud');
+    const appleCountEl = document.getElementById('apple-count');
+    const livesDisplayEl = document.getElementById('lives-display');
+    const progressBarEl = document.getElementById('progress-bar');
+    const hudCharEmojiEl = document.getElementById('hud-char-emoji');
+    const hudCharNameEl = document.getElementById('hud-char-name');
+
+    // Character selection cards
+    document.querySelectorAll('.char-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.selectedChar = card.dataset.char;
+        sfx.playTone(520, 'sine', 0.08, 0.12);
+      });
+    });
+
+    function updateHUD() {
+      appleCountEl.textContent = `${state.applesCollected} / ${state.totalApples}`;
+      livesDisplayEl.textContent = state.lives > 0 ? '❤️'.repeat(state.lives) : '💔';
+      const pct = Math.min(100, Math.max(0, Math.round((player.x / finishLine.x) * 100)));
+      progressBarEl.style.width = `${pct}%`;
+    }
+
+    function startGame() {
+      sfx.init();
+      buildLevel();
+
+      const charInfo = CHARACTERS[state.selectedChar];
+      hudCharEmojiEl.textContent = charInfo.emoji;
+      hudCharNameEl.textContent = charInfo.name;
+
+      state.lives = 3;
+      state.applesCollected = 0;
+      state.cameraX = 0;
+      state.invulnerableTimer = 0;
+      state.particles = [];
+      state.floatingTexts = [];
+
+      player.x = 110;
+      player.y = VIRTUAL_FLOOR - player.h - 10;
+      player.vx = 0;
+      player.vy = 0;
+      player.grounded = false;
+      player.facing = 1;
+      player.checkpointX = 110;
+      player.checkpointY = VIRTUAL_FLOOR - player.h - 20;
+
+      state.screen = 'playing';
+      startScreen.classList.add('hidden');
+      endScreen.classList.add('hidden');
+      hud.classList.remove('hidden');
+      updateHUD();
+    }
+
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('replay-btn').addEventListener('click', startGame);
+
+    document.getElementById('change-char-btn').addEventListener('click', () => {
+      state.screen = 'start';
+      endScreen.classList.add('hidden');
+      hud.classList.add('hidden');
+      startScreen.classList.remove('hidden');
+    });
+
+    document.getElementById('home-btn').addEventListener('click', () => {
+      state.screen = 'start';
+      hud.classList.add('hidden');
+      endScreen.classList.add('hidden');
+      startScreen.classList.remove('hidden');
+    });
+
+    document.getElementById('mute-btn').addEventListener('click', (e) => {
+      sfx.muted = !sfx.muted;
+      e.currentTarget.textContent = sfx.muted ? '🔇' : '🔊';
+    });
+
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (!keys.jump && state.screen === 'playing') triggerJump();
+        keys.jump = true;
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+    });
+
+    // On-screen button helpers (supports both mouse and multi-touch)
+    function bindHoldButton(btnId, keyName) {
+      const btn = document.getElementById(btnId);
+      const press = (e) => {
+        e.preventDefault();
+        keys[keyName] = true;
+        btn.classList.add('pressed');
+      };
+      const release = (e) => {
+        e.preventDefault();
+        keys[keyName] = false;
+        btn.classList.remove('pressed');
+      };
+      btn.addEventListener('mousedown', press);
+      btn.addEventListener('mouseup', release);
+      btn.addEventListener('mouseleave', release);
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('touchend', release, { passive: false });
+      btn.addEventListener('touchcancel', release, { passive: false });
+    }
+
+    bindHoldButton('btn-left', 'left');
+    bindHoldButton('btn-right', 'right');
+
+    const jumpBtn = document.getElementById('btn-jump');
+    const handleJumpBtnDown = (e) => {
+      e.preventDefault();
+      jumpBtn.classList.add('pressed');
+      if (state.screen === 'playing') triggerJump();
+      keys.jump = true;
+    };
+    const handleJumpBtnUp = (e) => {
+      e.preventDefault();
+      jumpBtn.classList.remove('pressed');
+      keys.jump = false;
+    };
+    jumpBtn.addEventListener('mousedown', handleJumpBtnDown);
+    jumpBtn.addEventListener('mouseup', handleJumpBtnUp);
+    jumpBtn.addEventListener('mouseleave', handleJumpBtnUp);
+    jumpBtn.addEventListener('touchstart', handleJumpBtnDown, { passive: false });
+    jumpBtn.addEventListener('touchend', handleJumpBtnUp, { passive: false });
+
+    // ==========================================
+    // 6. GAMEPLAY MECHANICS & PHYSICS
+    // ==========================================
+    function triggerJump() {
+      if (player.grounded) {
+        const charInfo = CHARACTERS[state.selectedChar];
+        player.vy = charInfo.jumpForce;
+        player.grounded = false;
+        sfx.jump();
+        spawnParticles(player.x + player.w / 2, player.y + player.h, '#ffffff', 8);
+      }
+    }
+
+    function spawnParticles(x, y, color, count = 10) {
+      for (let i = 0; i < count; i++) {
+        state.particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.8) * 6,
+          size: 4 + Math.random() * 5,
+          color,
+          life: 28 + Math.random() * 14
+        });
+      }
+    }
+
+    function spawnFloatingText(x, y, text, color = '#1e1b4b') {
+      state.floatingTexts.push({
+        x,
+        y,
+        text,
+        color,
+        life: 45
+      });
+    }
+
+    function hurtPlayer(reasonText = 'Ai! 💥') {
+      if (state.invulnerableTimer > 0) return;
+
+      state.lives -= 1;
+      sfx.hurt();
+      spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#f43f5e', 18);
+      spawnFloatingText(player.x, player.y - 16, reasonText, '#e11d48');
+      updateHUD();
+
+      if (state.lives <= 0) {
+        state.screen = 'gameover';
+        showEndScreen(false);
+      } else {
+        // Respawn cleanly at the last safe platform checkpoint
+        state.invulnerableTimer = 85;
+        player.x = player.checkpointX;
+        player.y = player.checkpointY;
+        player.vx = 0;
+        player.vy = 0;
+      }
+    }
+
+    function showEndScreen(isWin) {
+      hud.classList.add('hidden');
+      endScreen.classList.remove('hidden');
+
+      const endEmoji = document.getElementById('end-emoji');
+      const endTitle = document.getElementById('end-title');
+      const endSubtitle = document.getElementById('end-subtitle');
+      const endApples = document.getElementById('end-apples');
+      const endLives = document.getElementById('end-lives');
+
+      endApples.textContent = `${state.applesCollected} / ${state.totalApples} 🍎`;
+      endLives.textContent = `${Math.max(0, state.lives)} ❤️`;
+
+      if (isWin) {
+        endEmoji.textContent = '🏆🍓';
+        endTitle.textContent = 'AQUI VENCE!';
+        endTitle.className = 'text-3xl sm:text-4xl font-extrabold text-emerald-600 mb-2';
+        endSubtitle.textContent = `Parabéns! ${CHARACTERS[state.selectedChar].name} cruzou a linha de chegada no Mundo Gloob!`;
+      } else {
+        endEmoji.textContent = '💫🍎';
+        endTitle.textContent = 'Tente Novamente!';
+        endTitle.className = 'text-3xl sm:text-4xl font-extrabold text-rose-600 mb-2';
+        endSubtitle.textContent = 'Cuidado com os espinhos, buracos e o laser vermelho!';
+      }
+    }
+
+    function isLaserActive(laser) {
+      const cyclePos = (state.frameCount + laser.cycleOffset) % laser.period;
+      // Active for 75 frames, warning/off for the rest
+      return cyclePos < 75;
+    }
+
+    function isLaserWarning(laser) {
+      const cyclePos = (state.frameCount + laser.cycleOffset) % laser.period;
+      return cyclePos >= 140;
+    }
+
+    function update() {
+      state.frameCount++;
+
+      // Slowly drift background clouds
+      state.clouds.forEach(c => {
+        c.x -= c.speed;
+        if (c.x < -200) c.x = LEVEL_END_X + 400;
+      });
+
+      if (state.screen !== 'playing') return;
+
+      if (state.invulnerableTimer > 0) {
+        state.invulnerableTimer--;
+      }
+
+      const charInfo = CHARACTERS[state.selectedChar];
+
+      // Horizontal movement
+      if (keys.left) {
+        player.vx = -charInfo.speed;
+        player.facing = -1;
+        player.walkCycle += 0.25;
+      } else if (keys.right) {
+        player.vx = charInfo.speed;
+        player.facing = 1;
+        player.walkCycle += 0.25;
+      } else {
+        player.vx *= 0.78;
+        if (Math.abs(player.vx) < 0.2) player.vx = 0;
+        player.walkCycle = 0;
+      }
+
+      player.x += player.vx;
+      if (player.x < 10) player.x = 10;
+
+      // Gravity
+      const GRAVITY = 0.62;
+      player.vy += GRAVITY;
+      if (player.vy > 15) player.vy = 15;
+
+      const prevBottom = player.y + player.h;
+      player.y += player.vy;
+      player.grounded = false;
+
+      // Platform collisions (top landing & side blocking)
+      for (const plat of platforms) {
+        // Horizontal overlap
+        if (player.x + player.w - 6 > plat.x && player.x + 6 < plat.x + plat.w) {
+          // Landing on top of platform
+          if (player.vy >= 0 && prevBottom <= plat.y + 14 && player.y + player.h >= plat.y) {
+            player.y = plat.y - player.h;
+            player.vy = 0;
+            player.grounded = true;
+
+            // Update safe checkpoint when standing solidly on a wide platform
+            if (plat.w >= 180) {
+              player.checkpointX = Math.max(plat.x + 28, Math.min(player.x, plat.x + plat.w - player.w - 28));
+              player.checkpointY = plat.y - player.h - 8;
+            }
+          }
+        }
+      }
+
+      // Pit fall check
+      if (player.y > VIRTUAL_FLOOR + 230) {
+        hurtPlayer('Caiu no buraco!');
+      }
+
+      // Apple collection
+      for (const apple of apples) {
+        if (apple.collected) continue;
+        const dx = (player.x + player.w / 2) - apple.x;
+        const dy = (player.y + player.h / 2) - apple.y;
+        if (Math.hypot(dx, dy) < 36) {
+          apple.collected = true;
+          state.applesCollected++;
+          sfx.collectApple();
+          spawnParticles(apple.x, apple.y, '#ef4444', 12);
+          spawnFloatingText(apple.x - 15, apple.y - 18, '+1 🍎', '#dc2626');
+          updateHUD();
+        }
+      }
+
+      // Spike collision ("Espinhos")
+      for (const sp of spikes) {
+        const totalW = sp.count * sp.w;
+        const hitBox = {
+          x: sp.x + 4,
+          y: sp.y - sp.h + 6,
+          w: totalW - 8,
+          h: sp.h - 6
+        };
+        if (
+          player.x + player.w - 6 > hitBox.x &&
+          player.x + 6 < hitBox.x + hitBox.w &&
+          player.y + player.h > hitBox.y &&
+          player.y < hitBox.y + hitBox.h
+        ) {
+          hurtPlayer('Espinhos! 🔺');
+        }
+      }
+
+      // Laser collision ("Laser que mata")
+      for (const laser of lasers) {
+        if (!isLaserActive(laser)) continue;
+        const beamBox = {
+          x: laser.x - 6,
+          y: laser.y,
+          w: 12,
+          h: laser.h
+        };
+        if (
+          player.x + player.w - 6 > beamBox.x &&
+          player.x + 6 < beamBox.x + beamBox.w &&
+          player.y + player.h > beamBox.y &&
+          player.y < beamBox.y + beamBox.h
+        ) {
+          hurtPlayer('Laser! ⚡');
+        }
+      }
+
+      // Checkered Finish Line ("Aqui vence!")
+      if (player.x + player.w >= finishLine.x) {
+        state.screen = 'win';
+        sfx.win();
+        spawnParticles(finishLine.x + 20, finishLine.y - 60, '#facc15', 35);
+        showEndScreen(true);
+      }
+
+      // Update Particles & Floating Texts
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2;
+        p.life--;
+        if (p.life <= 0) state.particles.splice(i, 1);
+      }
+
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
+        ft.y -= 0.9;
+        ft.life--;
+        if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+      }
+
+      // Smooth Camera Follow
+      const targetCamX = player.x - width * 0.32;
+      state.cameraX += (targetCamX - state.cameraX) * 0.12;
+      state.cameraX = Math.max(0, Math.min(state.cameraX, LEVEL_END_X - width + 180));
+
+      updateHUD();
+    }
+
+    // ==========================================
+    // 7. CARTOON RENDERING (Canvas 2D)
+    // ==========================================
+    function drawBackground(verticalOffset) {
+      // Bright Mundo Gloob Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+      skyGrad.addColorStop(0, '#0ea5e9');
+      skyGrad.addColorStop(0.55, '#7dd3fc');
+      skyGrad.addColorStop(1, '#fef9c3');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Cheerful Sun in top right
+      const sunX = width - 110;
+      const sunY = 95;
+      ctx.save();
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.35)';
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 64 + Math.sin(state.frameCount * 0.04) * 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fde047';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Parallax Rolling Candy Hills
+      ctx.save();
+      ctx.translate(-state.cameraX * 0.25, verticalOffset);
+      for (let i = 0; i < 12; i++) {
+        const hx = i * 420 - 100;
+        const hy = VIRTUAL_FLOOR + 40;
+        ctx.fillStyle = i % 2 === 0 ? '#86efac' : '#6ee7b7';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 220, Math.PI, 0);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Fluffy Cartoon Clouds
+      ctx.save();
+      ctx.translate(-state.cameraX * 0.45, 0);
+      for (const c of state.clouds) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.scale(c.scale, c.scale);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 28, 0, Math.PI * 2);
+        ctx.arc(26, -8, 34, 0, Math.PI * 2);
+        ctx.arc(56, 0, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function drawPlatform(plat) {
+      ctx.save();
+      // Main block body
+      ctx.fillStyle = plat.dirt;
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 4;
+
+      ctx.beginPath();
+      ctx.roundRect(plat.x, plat.y, plat.w, plat.h, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Decorative polka dots inside block
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      for (let dx = plat.x + 26; dx < plat.x + plat.w - 20; dx += 48) {
+        for (let dy = plat.y + 42; dy < plat.y + Math.min(plat.h, 240); dy += 44) {
+          ctx.beginPath();
+          ctx.arc(dx, dy, 8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Top colorful frosting / grass layer
+      ctx.fillStyle = plat.color;
+      ctx.beginPath();
+      ctx.roundRect(plat.x, plat.y, plat.w, 22, [16, 16, 8, 8]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSign(sign) {
+      ctx.save();
+      const postX = sign.x;
+      const postTopY = sign.y - 68;
+
+      // Wooden post
+      ctx.fillStyle = '#92400e';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.fillRect(postX - 4, postTopY + 20, 8, 48);
+      ctx.strokeRect(postX - 4, postTopY + 20, 8, 48);
+
+      // Speech/Sign board (matching the hand-drawn bubbles in the sketch!)
+      ctx.font = 'bold 15px Fredoka, sans-serif';
+      const textWidth = ctx.measureText(sign.text).width;
+      const boxW = textWidth + 24;
+      const boxH = 34;
+
+      ctx.fillStyle = sign.bg;
+      ctx.beginPath();
+      ctx.roundRect(postX - boxW / 2, postTopY - 12, boxW, boxH, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#1e1b4b';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sign.text, postX, postTopY + 5);
+      ctx.restore();
+    }
+
+    function drawSpikes(sp) {
+      ctx.save();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+
+      for (let i = 0; i < sp.count; i++) {
+        const sx = sp.x + i * sp.w;
+        const sy = sp.y;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + sp.w / 2, sy - sp.h);
+        ctx.lineTo(sx + sp.w, sy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Red dangerous tip accent
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.moveTo(sx + sp.w * 0.32, sy - sp.h * 0.36);
+        ctx.lineTo(sx + sp.w / 2, sy - sp.h);
+        ctx.lineTo(sx + sp.w * 0.68, sy - sp.h * 0.36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#e2e8f0';
+      }
+      ctx.restore();
+    }
+
+    function drawLaser(laser) {
+      ctx.save();
+      const active = isLaserActive(laser);
+      const warning = isLaserWarning(laser);
+
+      // Top Emitter Device
+      ctx.fillStyle = '#334155';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(laser.x - 16, laser.y - 16, 32, 20, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Emitter glowing core
+      ctx.fillStyle = active ? '#ef4444' : (warning ? '#facc15' : '#64748b');
+      ctx.beginPath();
+      ctx.arc(laser.x, laser.y + 4, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (active) {
+        // Outer Red Glow
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.38)';
+        ctx.lineWidth = 18 + Math.sin(state.frameCount * 0.5) * 4;
+        ctx.beginPath();
+        ctx.moveTo(laser.x, laser.y + 6);
+        ctx.lineTo(laser.x, laser.y + laser.h);
+        ctx.stroke();
+
+        // Inner Deadly Red Beam
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(laser.x, laser.y + 6);
+        ctx.lineTo(laser.x, laser.y + laser.h);
+        ctx.stroke();
+
+        // White hot core
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(laser.x, laser.y + 6);
+        ctx.lineTo(laser.x, laser.y + laser.h);
+        ctx.stroke();
+      } else if (warning) {
+        // Thin dashed warning line before firing
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+        ctx.setLineDash([6, 6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(laser.x, laser.y + 6);
+        ctx.lineTo(laser.x, laser.y + laser.h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+    }
+
+    function drawApple(apple) {
+      if (apple.collected) return;
+      const bobY = apple.y + Math.sin(state.frameCount * 0.08 + apple.x * 0.05) * 5;
+
+      ctx.save();
+      ctx.translate(apple.x, bobY);
+
+      // Soft golden glow
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.45)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 21, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Apple body
+      ctx.fillStyle = '#ef4444';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(-4, 2, 12, 0, Math.PI * 2);
+      ctx.arc(4, 2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Stem
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, -8);
+      ctx.lineTo(2, -16);
+      ctx.stroke();
+
+      // Leaf
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.ellipse(7, -13, 6, 3.5, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glossy shine
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.beginPath();
+      ctx.ellipse(-6, -2, 3, 5, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawFinishLine() {
+      ctx.save();
+      const fx = finishLine.x;
+      const fy = finishLine.y;
+
+      // Left & Right Flag Poles
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.fillRect(fx, fy - finishLine.h, 8, finishLine.h);
+      ctx.strokeRect(fx, fy - finishLine.h, 8, finishLine.h);
+
+      // Checkered Banner ("Aqui vence!")
+      const bannerW = 135;
+      const bannerH = 44;
+      const rows = 3;
+      const cols = 9;
+      const cellW = bannerW / cols;
+      const cellH = bannerH / rows;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          ctx.fillStyle = (r + c) % 2 === 0 ? '#1e1b4b' : '#ffffff';
+          ctx.fillRect(fx + 8 + c * cellW, fy - finishLine.h + 6 + r * cellH, cellW, cellH);
+        }
+      }
+      ctx.strokeRect(fx + 8, fy - finishLine.h + 6, bannerW, bannerH);
+
+      // Ground checkered mat
+      for (let c = 0; c < 6; c++) {
+        ctx.fillStyle = c % 2 === 0 ? '#1e1b4b' : '#ffffff';
+        ctx.fillRect(fx - 10 + c * 14, fy - 6, 14, 8);
+      }
+
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      // Blink effect when invulnerable after taking damage
+      if (state.invulnerableTimer > 0 && Math.floor(state.invulnerableTimer / 5) % 2 === 0) {
+        return;
+      }
+
+      const charInfo = CHARACTERS[state.selectedChar];
+      const cx = player.x + player.w / 2;
+      const cy = player.y + player.h / 2;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(player.facing, 1);
+
+      // Little animated feet
+      const legSwing = player.grounded ? Math.sin(player.walkCycle) * 6 : 5;
+      ctx.fillStyle = '#1e1b4b';
+      ctx.beginPath();
+      ctx.roundRect(-11 + legSwing, 17, 10, 9, 4);
+      ctx.roundRect(2 - legSwing, 17, 10, 9, 4);
+      ctx.fill();
+
+      // Dress / Tunic Body
+      ctx.fillStyle = charInfo.outfitColor;
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-13, 2);
+      ctx.lineTo(13, 2);
+      ctx.lineTo(16, 20);
+      ctx.lineTo(-16, 20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cute Head
+      ctx.fillStyle = charInfo.skinColor;
+      ctx.beginPath();
+      ctx.arc(0, -8, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Fruit / Berry Hat (Moranguinho Strawberry Hat or Friend Theme)
+      ctx.fillStyle = charInfo.hatColor;
+      ctx.beginPath();
+      ctx.arc(0, -13, 15.5, Math.PI, 0);
+      ctx.quadraticCurveTo(16, -8, 12, -8);
+      ctx.quadraticCurveTo(0, -12, -12, -8);
+      ctx.quadraticCurveTo(-16, -8, -15.5, -13);
+      ctx.fill();
+      ctx.stroke();
+
+      // Hat Seeds / Dots
+      ctx.fillStyle = charInfo.hatDots;
+      ctx.beginPath();
+      ctx.arc(-6, -18, 1.8, 0, Math.PI * 2);
+      ctx.arc(2, -21, 1.8, 0, Math.PI * 2);
+      ctx.arc(8, -17, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Green Leaf Crown on top of hat
+      ctx.fillStyle = charInfo.leafColor;
+      ctx.beginPath();
+      ctx.ellipse(-5, -27, 6, 3, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(5, -27, 6, 3, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Cheerful Eyes & Smile
+      ctx.fillStyle = '#1e1b4b';
+      ctx.beginPath();
+      ctx.arc(5, -7, 2.3, 0, Math.PI * 2);
+      ctx.arc(11, -7, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rosy Cheek
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.arc(3, -3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Happy Smile
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(8, -4, 3.2, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function render() {
+      // Center vertical framing cleanly across mobile and desktop heights
+      const verticalOffset = Math.max(-60, (height - 620) * 0.55);
+
+      drawBackground(verticalOffset);
+
+      ctx.save();
+      ctx.translate(-state.cameraX, verticalOffset);
+
+      // Draw Platforms
+      for (const plat of platforms) {
+        drawPlatform(plat);
+      }
+
+      // Draw Signs ("Pular!", "Espinhos!", "Laser que mata!", "Aqui vence!")
+      for (const sign of signs) {
+        drawSign(sign);
+      }
+
+      // Draw Finish Line
+      drawFinishLine();
+
+      // Draw Spikes
+      for (const sp of spikes) {
+        drawSpikes(sp);
+      }
+
+      // Draw Lasers
+      for (const laser of lasers) {
+        drawLaser(laser);
+      }
+
+      // Draw Apples
+      for (const apple of apples) {
+        drawApple(apple);
+      }
+
+      // Draw Player
+      drawPlayer();
+
+      // Draw Particles
+      for (const p of state.particles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (p.life / 40), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw Floating Texts
+      for (const ft of state.floatingTexts) {
+        ctx.save();
+        ctx.font = 'bold 18px Fredoka, sans-serif';
+        ctx.fillStyle = ft.color;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // ==========================================
+    // 8. MAIN ANIMATION LOOP
+    // ==========================================
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      buildLevel();
+      gameLoop();
+    };
+  </script>
+</body>
+</html>

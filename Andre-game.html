@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sketchbook Clicker — Wake Up & Click!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Patrick+Hand&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Patrick Hand', cursive, sans-serif;
+      background-color: #f4f1ea;
+      color: #2b2927;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Textured sketchbook paper effect */
+    .sketch-paper {
+      background-color: #faf8f5;
+      background-image:
+        radial-gradient(rgba(80, 75, 70, 0.06) 1px, transparent 0),
+        radial-gradient(rgba(180, 70, 70, 0.03) 1px, transparent 0),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(236, 232, 224, 0.45));
+      background-size: 24px 24px, 37px 37px, 100% 100%;
+      background-position: 0 0, 12px 15px, 0 0;
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Hand-drawn wobbly border utility */
+    .sketch-box {
+      border: 2.5px solid #383532;
+      border-radius: 18px 24px 16px 22px / 22px 16px 24px 18px;
+      box-shadow: 3px 4px 0px rgba(56, 53, 50, 0.22);
+      background: rgba(255, 253, 250, 0.92);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .sketch-btn {
+      border: 2.5px solid #2b2927;
+      border-radius: 14px 20px 15px 18px / 18px 14px 20px 15px;
+      box-shadow: 3px 4px 0px #2b2927;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .sketch-btn:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 5px 0px #2b2927;
+    }
+
+    .sketch-btn:active {
+      transform: translate(2px, 3px);
+      box-shadow: 1px 1px 0px #2b2927;
+    }
+
+    .sketch-title {
+      font-family: 'Architects Daughter', cursive, sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="sketch-paper flex flex-col items-center justify-between relative">
+
+  <!-- Top HUD Bar -->
+  <header class="w-full max-w-4xl px-4 pt-3 pb-1 flex flex-wrap items-center justify-between gap-2 z-10 pointer-events-auto">
+    <!-- Score & Best -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="sketch-box px-3.5 py-1.5 flex items-center gap-2">
+        <span class="text-base sm:text-lg text-stone-600 uppercase tracking-wide">Score:</span>
+        <span id="scoreDisplay" class="sketch-title text-2xl sm:text-3xl font-bold text-[#c93b4b]">0</span>
+      </div>
+
+      <div class="sketch-box px-3 py-1.5 flex items-center gap-1.5">
+        <span class="text-sm sm:text-base text-stone-500">Best:</span>
+        <span id="bestDisplay" class="sketch-title text-lg sm:text-xl font-bold text-stone-800">0</span>
+      </div>
+    </div>
+
+    <!-- Center Timer / Fever Pill -->
+    <div id="timerBox" class="sketch-box px-4 py-1.5 flex items-center gap-2">
+      <span class="text-sm sm:text-base text-stone-600">Time:</span>
+      <span id="timerDisplay" class="sketch-title text-xl sm:text-2xl font-bold text-stone-800">15.0s</span>
+    </div>
+
+    <!-- Mode & Audio Controls -->
+    <div class="flex items-center gap-2">
+      <button id="modeToggleBtn" class="sketch-btn bg-[#fff6e9] hover:bg-[#ffedd5] px-3 py-1.5 text-sm sm:text-base font-bold text-stone-800" title="Switch Game Mode">
+        Mode: <span id="modeLabel" class="text-[#c93b4b]">15s Sprint</span>
+      </button>
+
+      <button id="soundToggleBtn" class="sketch-btn bg-white hover:bg-stone-100 p-2 text-stone-800" aria-label="Toggle Sound" title="Toggle Sound">
+        <!-- Sound On Icon -->
+        <svg id="soundOnIcon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <!-- Sound Off Icon -->
+        <svg id="soundOffIcon" class="w-5 h-5 hidden text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Interactive Sketch Canvas Area -->
+  <main class="relative flex-1 w-full flex items-center justify-center overflow-hidden">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Game Over / Round Summary Modal Card (Hidden until round ends) -->
+    <div id="resultModal" class="hidden absolute inset-0 bg-stone-900/20 backdrop-blur-[2px] flex items-center justify-center p-4 z-20">
+      <div class="sketch-box max-w-sm w-full p-6 text-center relative animate-[bounce_0.35s_ease-out]">
+        <div class="inline-block px-3 py-0.5 rounded-full bg-[#fce7ea] border border-[#c93b4b] text-[#c93b4b] text-sm font-bold mb-2">
+          Time's Up!
+        </div>
+        <h2 class="sketch-title text-3xl font-bold text-stone-800 mb-1">Great Clicking!</h2>
+        <p id="resultSubtitle" class="text-stone-600 text-lg mb-4">You woke them right up!</p>
+
+        <div class="bg-[#f5f2eb] border-2 border-dashed border-stone-400 rounded-xl p-4 mb-5 flex justify-around items-center">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-stone-500">Final Score</div>
+            <div id="finalScoreText" class="sketch-title text-4xl font-bold text-[#c93b4b]">0</div>
+          </div>
+          <div class="h-10 w-[2px] bg-stone-300"></div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-stone-500">High Score</div>
+            <div id="finalBestText" class="sketch-title text-3xl font-bold text-stone-800">0</div>
+          </div>
+        </div>
+
+        <div id="newRecordBadge" class="hidden mb-4 text-[#c93b4b] font-bold text-base">
+          ★ NEW SKETCHBOOK RECORD! ★
+        </div>
+
+        <button id="playAgainBtn" class="sketch-btn w-full py-3 bg-[#d94854] hover:bg-[#c53a46] text-white sketch-title text-xl font-bold tracking-wide">
+          Play Again
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Action Bar (Outside Canvas for easy thumb tap & reset) -->
+  <footer class="w-full max-w-4xl px-4 pb-3 pt-1 flex items-center justify-between gap-3 z-10 pointer-events-auto">
+    <div class="text-xs sm:text-sm text-stone-500 italic">
+      Tip: Click, tap, or press <kbd class="px-1.5 py-0.5 bg-white border border-stone-400 rounded text-stone-700 not-italic font-sans text-xs">SPACE</kbd> rapidly to lift the black ball!
+    </div>
+
+    <button id="resetBtn" class="sketch-btn bg-white hover:bg-stone-100 px-3.5 py-1.5 text-sm sm:text-base font-bold text-stone-700 shrink-0">
+      Reset
+    </button>
+  </footer>
+
+  <script>
+    /**
+     * SKETCHBOOK CLICKER GAME
+     * Inspired directly by the user's hand-drawn character sketch:
+     * - Character starts with eyes CLOSED.
+     * - Clicking moves the black ball UP; not clicking lets gravity pull it DOWN.
+     * - Rapid clicking opens the character's eyes, triggers excitement animations,
+     *   and builds the player's score!
+     */
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Elements
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const bestDisplay = document.getElementById('bestDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerBox = document.getElementById('timerBox');
+    const modeToggleBtn = document.getElementById('modeToggleBtn');
+    const modeLabel = document.getElementById('modeLabel');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundOnIcon = document.getElementById('soundOnIcon');
+    const soundOffIcon = document.getElementById('soundOffIcon');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultModal = document.getElementById('resultModal');
+    const finalScoreText = document.getElementById('finalScoreText');
+    const finalBestText = document.getElementById('finalBestText');
+    const newRecordBadge = document.getElementById('newRecordBadge');
+    const resultSubtitle = document.getElementById('resultSubtitle');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+
+    // Game Modes
+    const MODES = [
+      { id: 'sprint15', label: '15s Sprint', duration: 15.0 },
+      { id: 'sprint30', label: '30s Sprint', duration: 30.0 },
+      { id: 'endless', label: 'Endless Zen', duration: Infinity }
+    ];
+    let currentModeIndex = 0;
+
+    // Persistent High Scores per mode
+    let highScores = {
+      sprint15: parseInt(localStorage.getItem('sketch_best_sprint15') || '0', 10),
+      sprint30: parseInt(localStorage.getItem('sketch_best_sprint30') || '0', 10),
+      endless: parseInt(localStorage.getItem('sketch_best_endless') || '0', 10)
+    };
+
+    // Game State
+    const state = {
+      phase: 'IDLE', // 'IDLE' (eyes closed), 'PLAYING' (eyes open), 'GAMEOVER'
+      score: 0,
+      timeLeft: MODES[0].duration,
+      ballPos: 0.0,        // 0.0 = bottom (SEM APERTAR), 1.0 = top (APERTAR)
+      ballVel: 0.0,
+      eyeOpenness: 0.0,    // 0.0 = closed, 1.0 = wide open
+      feverAmount: 0.0,    // 0.0 to 1.0 based on ball height & click speed
+      lastClickTime: 0,
+      clickCombo: 0,
+      wobbleTime: 0,
+      squashY: 1.0,
+      screenShake: 0,
+      soundEnabled: true,
+      particles: [],
+      floatingTexts: [],
+      zzzParticles: []
+    };
+
+    // Web Audio API Sound Synthesizer (Zero external assets)
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtx = new AudioContext();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playClickSound(heightRatio, isFever) {
+      if (!state.soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      // Pitch climbs playfully as the black ball rises higher!
+      const baseFreq = 260 + heightRatio * 420 + (isFever ? 120 : 0);
+      osc.type = isFever ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.38, now + 0.075);
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.095);
+    }
+
+    function playWakeSound() {
+      if (!state.soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const notes = [330, 440, 587.33];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.045);
+        gain.gain.setValueAtTime(0.14, now + idx * 0.045);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.16);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + idx * 0.045);
+        osc.stop(now + idx * 0.045 + 0.17);
+      });
+    }
+
+    function playFinishSound() {
+      if (!state.soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+        gain.gain.setValueAtTime(0.16, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.32);
+      });
+    }
+
+    // Resize handling for responsive high-DPI canvas
+    let width = 0;
+    let height = 0;
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = rect.width;
+      height = rect.height;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Update UI displays
+    function updateHUD() {
+      const mode = MODES[currentModeIndex];
+      scoreDisplay.textContent = state.score;
+      bestDisplay.textContent = highScores[mode.id];
+      modeLabel.textContent = mode.label;
+
+      if (mode.duration === Infinity) {
+        timerDisplay.textContent = '∞';
+        timerDisplay.classList.remove('text-[#c93b4b]');
+      } else {
+        timerDisplay.textContent = Math.max(0, state.timeLeft).toFixed(1) + 's';
+        if (state.phase === 'PLAYING' && state.timeLeft <= 3.5) {
+          timerDisplay.classList.add('text-[#c93b4b]');
+        } else {
+          timerDisplay.classList.remove('text-[#c93b4b]');
+        }
+      }
+    }
+
+    // Reset round to initial sleeping state
+    function resetGame() {
+      const mode = MODES[currentModeIndex];
+      state.phase = 'IDLE';
+      state.score = 0;
+      state.timeLeft = mode.duration;
+      state.ballPos = 0.0;
+      state.ballVel = 0.0;
+      state.eyeOpenness = 0.0;
+      state.feverAmount = 0.0;
+      state.clickCombo = 0;
+      state.squashY = 1.0;
+      state.screenShake = 0;
+      state.particles = [];
+      state.floatingTexts = [];
+      resultModal.classList.add('hidden');
+      updateHUD();
+    }
+
+    // Spawn pencil-sketch particles
+    function spawnClickParticles(x, y, isHigh) {
+      const colors = isHigh
+        ? ['#d94854', '#e86f78', '#2b2927', '#f59e0b']
+        : ['#d94854', '#44403c', '#78716c'];
+
+      const count = isHigh ? 10 : 6;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+        const speed = 90 + Math.random() * 160;
+        state.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 40,
+          size: 3 + Math.random() * 4.5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 1.0,
+          decay: 1.8 + Math.random() * 0.9,
+          isStar: isHigh && i % 2 === 0,
+          rot: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    function spawnFloatingText(x, y, text, color) {
+      state.floatingTexts.push({
+        x: x + (Math.random() - 0.5) * 34,
+        y,
+        vy: -75 - Math.random() * 30,
+        text,
+        color,
+        life: 1.0,
+        scale: 1.0
+      });
+    }
+
+    // Core Player Click Action
+    function handlePlayerClick(clientX, clientY) {
+      if (state.phase === 'GAMEOVER') return;
+
+      const now = performance.now();
+
+      // Wake up character on first click!
+      if (state.phase === 'IDLE') {
+        state.phase = 'PLAYING';
+        state.zzzParticles = [];
+        playWakeSound();
+      }
+
+      // Combo tracking
+      if (now - state.lastClickTime < 340) {
+        state.clickCombo++;
+      } else {
+        state.clickCombo = 1;
+      }
+      state.lastClickTime = now;
+
+      // Push the black ball UP!
+      const boost = 0.24 + Math.min(state.clickCombo * 0.008, 0.08);
+      state.ballPos = Math.min(1.0, state.ballPos + boost);
+      state.ballVel = Math.max(state.ballVel, 1.35);
+
+      // Bonus point if kept in the top target zone ("APERTAR" peak!)
+      const isTopZone = state.ballPos >= 0.78;
+      const pointsEarned = isTopZone ? 2 : 1;
+      state.score += pointsEarned;
+
+      // Update high score live in endless mode or keep tracked
+      const mode = MODES[currentModeIndex];
+      if (state.score > highScores[mode.id]) {
+        highScores[mode.id] = state.score;
+        localStorage.setItem(`sketch_best_${mode.id}`, String(state.score));
+      }
+
+      // Character squash/stretch & feedback
+      state.squashY = 1.11;
+      state.screenShake = isTopZone ? 4.5 : 2.0;
+      playClickSound(state.ballPos, isTopZone);
+
+      // Determine particle position near character's chest / ball
+      const charCenter = getCharacterMetrics();
+      const ballScreenY = charCenter.trackBottom - state.ballPos * charCenter.trackHeight;
+      spawnClickParticles(charCenter.cx, ballScreenY, isTopZone);
+
+      const popLabel = isTopZone ? '+2 ★' : '+1';
+      const popColor = isTopZone ? '#c93b4b' : '#2b2927';
+      spawnFloatingText(charCenter.cx + (Math.random() > 0.5 ? 42 : -42), ballScreenY - 10, popLabel, popColor);
+
+      updateHUD();
+    }
+
+    // End of timed sprint round
+    function finishRound() {
+      state.phase = 'GAMEOVER';
+      state.timeLeft = 0;
+      updateHUD();
+      playFinishSound();
+
+      const mode = MODES[currentModeIndex];
+      const best = highScores[mode.id];
+      const isNewRecord = state.score > 0 && state.score >= best;
+
+      finalScoreText.textContent = state.score;
+      finalBestText.textContent = best;
+
+      if (isNewRecord) {
+        newRecordBadge.classList.remove('hidden');
+      } else {
+        newRecordBadge.classList.add('hidden');
+      }
+
+      if (state.score >= 80) {
+        resultSubtitle.textContent = "Unbelievable speed! The black ball stayed sky high!";
+      } else if (state.score >= 45) {
+        resultSubtitle.textContent = "Awesome rhythm! Wide awake and full of energy!";
+      } else {
+        resultSubtitle.textContent = "Nice try! Click faster to keep the black ball up!";
+      }
+
+      resultModal.classList.remove('hidden');
+    }
+
+    // Event Listeners for Canvas, Touch, and Keyboard
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handlePlayerClick(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (!e.repeat) {
+          handlePlayerClick(width / 2, height / 2);
+        }
+      }
+    });
+
+    modeToggleBtn.addEventListener('click', () => {
+      currentModeIndex = (currentModeIndex + 1) % MODES.length;
+      resetGame();
+    });
+
+    soundToggleBtn.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      soundOnIcon.classList.toggle('hidden', !state.soundEnabled);
+      soundOffIcon.classList.toggle('hidden', state.soundEnabled);
+    });
+
+    resetBtn.addEventListener('click', resetGame);
+    playAgainBtn.addEventListener('click', resetGame);
+
+    // Responsive Layout Metrics for the Sketch Character & Diagrams
+    function getCharacterMetrics() {
+      const minDim = Math.min(width, height);
+      const scale = Math.max(0.68, Math.min(1.32, minDim / 540));
+      const cx = width * 0.5;
+      const cy = height * 0.48;
+      const trackTop = cy + 8 * scale;
+      const trackBottom = cy + 92 * scale;
+      const trackHeight = trackBottom - trackTop;
+      return { cx, cy, scale, trackTop, trackBottom, trackHeight };
+    }
+
+    /**
+     * Hand-drawn Pencil Stroke Helpers
+     */
+    function drawColoredPencilFill(drawPathFn, fillColor, strokeColor, lineWidth = 2) {
+      ctx.save();
+      drawPathFn();
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+
+      // Subtle colored-pencil grain hatching inside
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 1.5;
+      for (let i = -240; i < 240; i += 7) {
+        ctx.beginPath();
+        ctx.moveTo(i, -220);
+        ctx.lineTo(i + 90, 220);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      if (strokeColor) {
+        ctx.save();
+        drawPathFn();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = lineWidth;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawScribbleCluster(cx, cy, rx, ry, color, density = 14) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.1;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = 0; i <= density; i++) {
+        const t = (i / density) * Math.PI * 2;
+        const jitterX = Math.sin(i * 7.3) * (rx * 0.28);
+        const jitterY = Math.cos(i * 5.1) * (ry * 0.28);
+        const px = cx + Math.cos(t) * rx * 0.72 + jitterX;
+        const py = cy + Math.sin(t) * ry * 0.72 + jitterY;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /**
+     * Render the Character from the User's Drawing
+     */
+    function drawCharacter(dt) {
+      const { cx, cy, scale, trackTop, trackBottom, trackHeight } = getCharacterMetrics();
+
+      // Idle breathing or energetic bounce
+      const idleBreath = state.phase === 'IDLE' ? Math.sin(state.wobbleTime * 2.4) * 3 : 0;
+      const feverBounce = state.feverAmount * Math.sin(state.wobbleTime * 26) * 4;
+
+      ctx.save();
+      ctx.translate(cx, cy + idleBreath + feverBounce);
+      ctx.scale(scale * (2 - state.squashY), scale * state.squashY);
+
+      // 1. Subtle pencil body torso outline (like the light pencil box at bottom of drawing)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(90, 86, 82, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-48, 30);
+      ctx.lineTo(-52, 128);
+      ctx.quadraticCurveTo(0, 134, 52, 128);
+      ctx.lineTo(48, 30);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. Reddish-Pink Puffy / Spiky Hair Tuft on Top (matching user's sketch!)
+      const hairWave = Math.sin(state.wobbleTime * 8) * (2 + state.feverAmount * 5);
+      const drawHairPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(-64, -36);
+        // Left tuft
+        ctx.quadraticCurveTo(-88, -52, -84, -84);
+        ctx.quadraticCurveTo(-72, -74, -64, -82);
+        // Upper-left puff
+        ctx.quadraticCurveTo(-66, -112, -34, -116);
+        // Iconic center flame/leaf tip at very top
+        ctx.quadraticCurveTo(-18, -134, -8 + hairWave, -154);
+        ctx.quadraticCurveTo(4 + hairWave, -132, 14, -116);
+        // Upper-right puff
+        ctx.quadraticCurveTo(54, -118, 66, -90);
+        // Right spiky curl
+        ctx.quadraticCurveTo(84, -92, 76, -72);
+        ctx.quadraticCurveTo(86, -60, 64, -36);
+        ctx.closePath();
+      };
+      drawColoredPencilFill(drawHairPath, '#e27d87', '#6e474b', 2.2);
+
+      // Internal sketchy hair strands
+      ctx.save();
+      ctx.strokeStyle = 'rgba(130, 58, 66, 0.45)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-36, -68);
+      ctx.quadraticCurveTo(-22, -104, -8 + hairWave * 0.6, -136);
+      ctx.moveTo(26, -66);
+      ctx.quadraticCurveTo(22, -98, 4, -124);
+      ctx.stroke();
+      ctx.restore();
+
+      // 3. Dark Charcoal/Gray Scribble Eye Sockets & Eyes (Start CLOSED, open when clicked!)
+      const eyePositions = [-27, 27];
+      eyePositions.forEach((ex, idx) => {
+        const ey = -52;
+        // Dark gray/black scribble cloud around each eye just like the sketch
+        drawScribbleCluster(ex, ey, 23, 19, '#4a4744', 18);
+        drawScribbleCluster(ex, ey, 17, 14, '#2e2c2a', 12);
+
+        if (state.eyeOpenness < 0.15) {
+          // CLOSED EYES (Initial peaceful/sleepy state!)
+          ctx.save();
+          ctx.strokeStyle = '#1f1d1b';
+          ctx.lineWidth = 3.2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(ex - 12, ey + 2);
+          ctx.quadraticCurveTo(ex, ey + 8, ex + 12, ey + 2);
+          ctx.stroke();
+
+          // Tiny closed eyelash ticks
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(ex - 6, ey + 5);
+          ctx.lineTo(ex - 8, ey + 9);
+          ctx.moveTo(ex + 6, ey + 5);
+          ctx.lineTo(ex + 8, ey + 9);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // OPEN EYES (Excited reddish-amber & dark pupils!)
+          const openH = 13 * state.eyeOpenness;
+          ctx.save();
+          ctx.fillStyle = '#fffdf9';
+          ctx.strokeStyle = '#1f1d1b';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.ellipse(ex, ey, 11.5, Math.max(3, openH), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Reddish-brown iris matching the red pencil accents in the sketch's eyes
+          const lookOffset = (state.ballPos - 0.5) * 4;
+          ctx.fillStyle = '#b8323e';
+          ctx.beginPath();
+          ctx.arc(ex + (idx === 0 ? 1.5 : -1.5), ey - lookOffset, 5.5 * Math.min(1, state.eyeOpenness), 0, Math.PI * 2);
+          ctx.fill();
+
+          // Pupil + sparkle highlight
+          ctx.fillStyle = '#181615';
+          ctx.beginPath();
+          ctx.arc(ex + (idx === 0 ? 1.5 : -1.5), ey - lookOffset, 2.8 * Math.min(1, state.eyeOpenness), 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex - 2, ey - 3 - lookOffset, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+
+      // 4. Center Chest Track (Where the BLACK BALL moves up and down!)
+      // Subtle vertical pencil guide channel between scarf and red bib
+      const localTrackTop = 8;
+      const localTrackBottom = 92;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(65, 60, 56, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, localTrackTop);
+      ctx.lineTo(0, localTrackBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Top target tick ("APERTAR" high zone marker)
+      ctx.strokeStyle = state.ballPos >= 0.78 ? '#c93b4b' : 'rgba(180, 60, 70, 0.5)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-11, localTrackTop + 4);
+      ctx.lineTo(11, localTrackTop + 4);
+      ctx.stroke();
+      ctx.restore();
+
+      // 5. Red Heart / Wattle Bib in Center Chest (below the black ball track)
+      const drawRedBib = () => {
+        ctx.beginPath();
+        ctx.moveTo(0, 54);
+        // Little top leaves/ears on the red chest emblem from the drawing
+        ctx.quadraticCurveTo(-16, 44, -20, 52);
+        ctx.quadraticCurveTo(-12, 58, -4, 58);
+        // Left plump lobe
+        ctx.bezierCurveTo(-24, 58, -26, 94, -4, 96);
+        ctx.quadraticCurveTo(0, 92, 0, 88);
+        ctx.quadraticCurveTo(0, 92, 4, 96);
+        // Right plump lobe
+        ctx.bezierCurveTo(26, 94, 24, 58, 4, 58);
+        ctx.quadraticCurveTo(12, 58, 20, 52);
+        ctx.quadraticCurveTo(16, 44, 0, 54);
+        ctx.closePath();
+      };
+      drawColoredPencilFill(drawRedBib, '#de6470', '#7a3b42', 2);
+
+      // 6. THE BLACK BALL (Moves UP when clicked, falls DOWN when not clicked!)
+      const ballY = localTrackBottom - state.ballPos * (localTrackBottom - localTrackTop);
+      const ballRadius = 11.5 + state.feverAmount * 2;
+
+      // Glow ring when in top zone
+      if (state.ballPos >= 0.78) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(217, 72, 84, 0.55)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, ballY, ballRadius + 5 + Math.sin(state.wobbleTime * 20) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Draw hand-shaded black ball
+      ctx.save();
+      ctx.fillStyle = '#1f1e1d';
+      ctx.strokeStyle = '#0f0e0e';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, ballY, ballRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pencil graphite highlight on the black ball
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.beginPath();
+      ctx.arc(-3.5, ballY - 3.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 7. Wrapped Red Scarf around Neck
+      const drawScarf = () => {
+        ctx.beginPath();
+        ctx.moveTo(-54, -28);
+        ctx.quadraticCurveTo(0, -35, 54, -28);
+        ctx.quadraticCurveTo(64, -14, 52, -2);
+        // Scarf dangling folds
+        ctx.lineTo(36, 12);
+        ctx.lineTo(24, 2);
+        ctx.quadraticCurveTo(0, 6, -24, 2);
+        ctx.lineTo(-38, 12);
+        ctx.lineTo(-52, -2);
+        ctx.quadraticCurveTo(-64, -14, -54, -28);
+        ctx.closePath();
+      };
+      drawColoredPencilFill(drawScarf, '#df616e', '#75373e', 2.2);
+
+      // Scarf wrap crease lines
+      ctx.save();
+      ctx.strokeStyle = '#8f3f47';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-48, -16);
+      ctx.quadraticCurveTo(0, -21, 48, -16);
+      ctx.moveTo(-44, -7);
+      ctx.quadraticCurveTo(0, -11, 44, -7);
+      ctx.stroke();
+      ctx.restore();
+
+      // 8. Dark Charcoal/Black Scribble Arms/Wings on Left and Right Sides
+      // Arms lift up slightly as the black ball rises!
+      const armLift = state.ballPos * 16 + Math.sin(state.wobbleTime * 12) * (state.phase === 'PLAYING' ? 3 : 0.8);
+
+      // Left arm
+      ctx.save();
+      ctx.translate(-52, 16 - armLift * 0.5);
+      ctx.rotate(0.22 + state.ballPos * 0.25);
+      const drawLeftArm = () => {
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.bezierCurveTo(-24, 6, -26, 56, -8, 76);
+        ctx.bezierCurveTo(6, 72, 14, 34, 8, -8);
+        ctx.closePath();
+      };
+      drawColoredPencilFill(drawLeftArm, '#4a4846', '#262524', 2);
+      drawScribbleCluster(-6, 32, 11, 32, '#222120', 22);
+      ctx.restore();
+
+      // Right arm
+      ctx.save();
+      ctx.translate(52, 16 - armLift * 0.5);
+      ctx.rotate(-0.22 - state.ballPos * 0.25);
+      const drawRightArm = () => {
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.bezierCurveTo(24, 6, 26, 56, 8, 76);
+        ctx.bezierCurveTo(-6, 72, -14, 34, -8, -8);
+        ctx.closePath();
+      };
+      drawColoredPencilFill(drawRightArm, '#4a4846', '#262524', 2);
+      drawScribbleCluster(6, 32, 11, 32, '#222120', 22);
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    /**
+     * Draw Hand-Drawn Sketchbook Annotations from the User's Drawing:
+     * 1. The hand-drawn cursor arrow + "CLICK" label next to the character
+     * 2. The bottom-right comparison box: "SEM APERTAR" vs "APERTAR"
+     */
+    function drawSketchAnnotations() {
+      const { cx, cy, scale } = getCharacterMetrics();
+
+      // A. Hand-drawn Cursor Arrow + "CLICK" prompt (right side of character)
+      const cursorPulse = Math.sin(state.wobbleTime * 5) * 5;
+      const cursorX = cx + 115 * scale - cursorPulse;
+      const cursorY = cy + 32 * scale - cursorPulse * 0.6;
+
+      if (width > 430 || state.phase === 'IDLE') {
+        ctx.save();
+        ctx.translate(cursorX, cursorY);
+        ctx.scale(scale * 0.95, scale * 0.95);
+
+        // Pencil-drawn cursor arrow (just like the drawing!)
+        ctx.strokeStyle = '#3d3a37';
+        ctx.fillStyle = '#fffdf9';
+        ctx.lineWidth = 2.2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(6, 28);
+        ctx.lineTo(13, 22);
+        ctx.lineTo(21, 34);
+        ctx.lineTo(27, 29);
+        ctx.lineTo(19, 17);
+        ctx.lineTo(26, 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Handwritten "CLICK" text
+        ctx.fillStyle = state.phase === 'IDLE' ? '#c93b4b' : '#4a4642';
+        ctx.font = 'bold 24px "Architects Daughter", cursive';
+        ctx.fillText('CLICK', 28, -4);
+
+        if (state.phase === 'IDLE') {
+          ctx.font = '16px "Patrick Hand", cursive';
+          ctx.fillStyle = '#6b655f';
+          ctx.fillText('to wake & lift the ball!', 22, 16);
+        }
+        ctx.restore();
+      }
+
+      // B. Bottom-right Diagram Box: "SEM APERTAR" | "APERTAR" (from user's sketch!)
+      if (width >= 600 && height >= 460) {
+        const boxW = 246;
+        const boxH = 104;
+        const bx = width - boxW - 22;
+        const by = height - boxH - 14;
+
+        ctx.save();
+        ctx.translate(bx, by);
+
+        // Hand-drawn rectangle box with divider
+        ctx.fillStyle = 'rgba(255, 253, 249, 0.85)';
+        ctx.strokeStyle = '#4a4642';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(0, 0, boxW, boxH);
+        ctx.fill();
+        ctx.stroke();
+
+        // Vertical divider line
+        ctx.beginPath();
+        ctx.moveTo(boxW * 0.52, 0);
+        ctx.lineTo(boxW * 0.52, boxH);
+        ctx.stroke();
+
+        // Highlight active side based on whether ball is down or up!
+        const isPressingHigh = state.ballPos > 0.35;
+        ctx.fillStyle = !isPressingHigh ? 'rgba(217, 72, 84, 0.1)' : 'transparent';
+        ctx.fillRect(2, 2, boxW * 0.52 - 4, boxH - 4);
+        ctx.fillStyle = isPressingHigh ? 'rgba(217, 72, 84, 0.12)' : 'transparent';
+        ctx.fillRect(boxW * 0.52 + 2, 2, boxW * 0.48 - 4, boxH - 4);
+
+        // Labels matching the user's sketch
+        ctx.fillStyle = '#383532';
+        ctx.font = 'bold 14px "Architects Daughter", cursive';
+        ctx.fillText('SEM APERTAR', 12, 20);
+        ctx.fillText('APERTAR', boxW * 0.52 + 18, 20);
+
+        // Mini sketch left: arms down, ball low
+        drawMiniDiagramIcon(boxW * 0.26, 66, false);
+        // Mini sketch right: arms up, ball lifted
+        drawMiniDiagramIcon(boxW * 0.76, 66, true);
+
+        ctx.restore();
+      }
+    }
+
+    function drawMiniDiagramIcon(x, y, isUp) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = '#383532';
+      ctx.lineWidth = 2;
+
+      // Left & right mini arms
+      ctx.beginPath();
+      ctx.moveTo(-22, 26);
+      ctx.lineTo(-14, isUp ? -14 : -4);
+      ctx.lineTo(-8, 26);
+      ctx.moveTo(8, 26);
+      ctx.lineTo(14, isUp ? -14 : -4);
+      ctx.lineTo(22, 26);
+      ctx.stroke();
+
+      // Mini black ball (down vs up)
+      ctx.fillStyle = '#1f1e1d';
+      ctx.beginPath();
+      ctx.arc(0, isUp ? -8 : 16, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Little motion arrow
+      ctx.strokeStyle = '#c93b4b';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      if (isUp) {
+        ctx.moveTo(0, 12);
+        ctx.lineTo(0, 1);
+        ctx.moveTo(-3, 4);
+        ctx.lineTo(0, 1);
+        ctx.lineTo(3, 4);
+      } else {
+        ctx.moveTo(0, -4);
+        ctx.lineTo(0, 7);
+        ctx.moveTo(-3, 4);
+        ctx.lineTo(0, 7);
+        ctx.lineTo(3, 4);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /**
+     * Render Sleepy "Zzz" when Eyes are Closed, plus Particles & Floating Scores
+     */
+    function drawEffects(dt) {
+      const { cx, cy, scale } = getCharacterMetrics();
+
+      // Sleepy Zzz particles in IDLE state
+      if (state.phase === 'IDLE') {
+        if (Math.random() < dt * 1.4) {
+          state.zzzParticles.push({
+            x: cx + 46 * scale,
+            y: cy - 72 * scale,
+            vx: 16 + Math.random() * 10,
+            vy: -24 - Math.random() * 10,
+            life: 1.0,
+            size: 16 + Math.random() * 8
+          });
+        }
+      }
+
+      for (let i = state.zzzParticles.length - 1; i >= 0; i--) {
+        const z = state.zzzParticles[i];
+        z.x += z.vx * dt;
+        z.y += z.vy * dt;
+        z.life -= dt * 0.55;
+        if (z.life <= 0) {
+          state.zzzParticles.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, z.life);
+        ctx.fillStyle = '#57534e';
+        ctx.font = `bold ${Math.round(z.size)}px "Architects Daughter", cursive`;
+        ctx.fillText('z', z.x, z.y);
+        ctx.restore();
+      }
+
+      // Click burst particles
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 320 * dt; // light gravity
+        p.rot += 4 * dt;
+        p.life -= p.decay * dt;
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.strokeStyle = p.color;
+
+        if (p.isStar) {
+          ctx.font = `bold ${Math.round(p.size * 3.2)}px sans-serif`;
+          ctx.fillText('★', -p.size, p.size);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Floating +1 / +2 score popups
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
+        ft.y += ft.vy * dt;
+        ft.life -= dt * 1.35;
+        if (ft.life <= 0) {
+          state.floatingTexts.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.life);
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 26px "Architects Daughter", cursive';
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      // Banner prompt when IDLE
+      if (state.phase === 'IDLE') {
+        const pulse = 1 + Math.sin(state.wobbleTime * 4.5) * 0.04;
+        ctx.save();
+        ctx.translate(cx, Math.min(height - 34, cy + 168 * scale));
+        ctx.scale(pulse, pulse);
+        ctx.fillStyle = '#c93b4b';
+        ctx.font = 'bold 24px "Architects Daughter", cursive';
+        ctx.textAlign = 'center';
+        ctx.fillText('Eyes Closed... Click Anywhere to Wake & Score!', 0, 0);
+        ctx.restore();
+      }
+    }
+
+    /**
+     * Main Simulation & Render Loop
+     */
+    let lastFrameTime = performance.now();
+    function gameLoop(now) {
+      const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+      lastFrameTime = now;
+      state.wobbleTime += dt;
+
+      // Update timer in Sprint modes
+      if (state.phase === 'PLAYING') {
+        const mode = MODES[currentModeIndex];
+        if (mode.duration !== Infinity) {
+          state.timeLeft -= dt;
+          if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            finishRound();
+          }
+          updateHUD();
+        }
+      }
+
+      // Ball physics: Goes UP on click, smoothly falls DOWN when not clicking!
+      if (state.phase === 'PLAYING') {
+        // Gravity pulls the ball downward
+        const gravity = 0.85;
+        state.ballVel -= gravity * dt;
+        state.ballPos += state.ballVel * dt;
+
+        if (state.ballPos <= 0) {
+          state.ballPos = 0;
+          state.ballVel = 0;
+        } else if (state.ballPos >= 1) {
+          state.ballPos = 1;
+          state.ballVel = Math.min(state.ballVel, 0);
+        }
+      } else if (state.phase === 'IDLE') {
+        state.ballPos = 0;
+        state.ballVel = 0;
+      }
+
+      // Eye openness interpolation (closed in IDLE, open when PLAYING)
+      const targetEye = state.phase === 'IDLE' ? 0.0 : 1.0;
+      state.eyeOpenness += (targetEye - state.eyeOpenness) * Math.min(1, dt * 14);
+
+      // Fever intensity when ball is high
+      const targetFever = state.phase === 'PLAYING' && state.ballPos >= 0.78 ? 1.0 : 0.0;
+      state.feverAmount += (targetFever - state.feverAmount) * Math.min(1, dt * 10);
+
+      // Squash & screen shake recovery
+      state.squashY += (1.0 - state.squashY) * Math.min(1, dt * 16);
+      state.screenShake = Math.max(0, state.screenShake - dt * 24);
+
+      // Clear & Render
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.save();
+      if (state.screenShake > 0.1) {
+        const sx = (Math.random() - 0.5) * state.screenShake;
+        const sy = (Math.random() - 0.5) * state.screenShake;
+        ctx.translate(sx, sy);
+      }
+
+      drawSketchAnnotations();
+      drawCharacter(dt);
+      drawEffects(dt);
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Initialize on Window Load
+    window.onload = function () {
+      resizeCanvas();
+      resetGame();
+      lastFrameTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>

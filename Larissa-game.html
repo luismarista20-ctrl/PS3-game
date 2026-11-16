@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turma da Batatinha: Batatinha vs. Doce</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Classic Newgrounds / Flash Game Styling */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+            font-family: 'Fredoka', sans-serif;
+            color: #f8fafc;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flash-font {
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1.5px;
+        }
+
+        /* Flash Player Bezel */
+        .flash-player-frame {
+            background: #111827;
+            border: 4px solid #374151;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 0 0 2px #000;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            max-width: 920px;
+        }
+
+        .flash-header-bar {
+            background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+            border-bottom: 3px solid #000;
+            padding: 6px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #0f172a;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Glossy 2000s Flash Arcade Buttons */
+        .flash-btn {
+            background: linear-gradient(180deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
+            border: 3px solid #000;
+            border-radius: 12px;
+            color: #000;
+            font-family: 'Bangers', cursive;
+            font-size: 1.35rem;
+            letter-spacing: 1px;
+            padding: 8px 20px;
+            box-shadow: 0 4px 0 #000, inset 0 2px 2px rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.1s ease;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .flash-btn:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 0 #000, inset 0 2px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .flash-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #000;
+        }
+
+        .flash-btn-blue {
+            background: linear-gradient(180deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%);
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .flash-btn-red {
+            background: linear-gradient(180deg, #f87171 0%, #dc2626 50%, #991b1b 100%);
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .flash-btn-purple {
+            background: linear-gradient(180deg, #c084fc 0%, #9333ea 50%, #6b21a8 100%);
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .flash-btn-sm {
+            font-size: 0.95rem;
+            padding: 4px 12px;
+            border-width: 2px;
+            border-radius: 8px;
+            box-shadow: 0 2px 0 #000;
+        }
+
+        /* Arcade Touch Pad Controls */
+        .arcade-pad-btn {
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+            border: 3px solid #000;
+            border-radius: 14px;
+            color: #f8fafc;
+            font-weight: 700;
+            box-shadow: 0 4px 0 #000, inset 0 1px 1px rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.05s, background 0.1s;
+        }
+
+        .arcade-pad-btn:active, .arcade-pad-btn.active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #000;
+            background: #475569;
+        }
+
+        .arcade-attack-btn {
+            background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1px;
+        }
+
+        .arcade-attack-btn:active, .arcade-attack-btn.active {
+            background: #dc2626;
+        }
+
+        .arcade-laser-btn {
+            background: linear-gradient(180deg, #06b6d4 0%, #0e7490 100%);
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1px;
+        }
+
+        .arcade-laser-btn.ready {
+            animation: pulseGlow 1s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from { box-shadow: 0 4px 0 #000, 0 0 8px #22d3ee; }
+            to { box-shadow: 0 4px 0 #000, 0 0 20px #67e8f9; }
+        }
+    </style>
+</head>
+<body class="p-2 sm:p-4">
+
+    <!-- Main Flash Player Container -->
+    <div class="flash-player-frame">
+        <!-- Classic Flash Top Bar -->
+        <div class="flash-header-bar">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-3 h-3 rounded-full bg-red-500 border border-black"></span>
+                <span class="inline-block w-3 h-3 rounded-full bg-yellow-400 border border-black"></span>
+                <span class="inline-block w-3 h-3 rounded-full bg-green-500 border border-black"></span>
+                <span class="flash-font text-yellow-400 text-base sm:text-lg ml-1 tracking-wider">TURMA DA BATATINHA.SWF</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Difficulty Selector -->
+                <div class="flex items-center gap-1 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700">
+                    <span class="text-xs text-slate-400 hidden sm:inline">IA DOCE:</span>
+                    <select id="difficultySelect" class="bg-transparent text-xs font-bold text-cyan-300 focus:outline-none cursor-pointer">
+                        <option value="easy" class="bg-slate-900">FÁCIL</option>
+                        <option value="normal" selected class="bg-slate-900">NORMAL</option>
+                        <option value="hard" class="bg-slate-900">DIFÍCIL</option>
+                    </select>
+                </div>
+
+                <!-- Mute Toggle -->
+                <button id="muteBtn" class="flash-btn flash-btn-blue flash-btn-sm flex items-center gap-1" title="Alternar Som">
+                    <span id="muteIcon">🔊</span>
+                    <span class="hidden sm:inline" id="muteText">SOM</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Viewport Canvas -->
+        <div class="canvas-wrapper" id="canvasContainer">
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Title Screen Overlay -->
+            <div id="titleOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center z-20">
+                <div class="bg-yellow-400 text-black font-bold text-xs sm:text-sm px-3 py-1 rounded-full border-2 border-black mb-2 shadow">
+                    ★ EDIÇÃO ESPECIAL FLASH ARCADE ★
+                </div>
+                <h1 class="flash-font text-4xl sm:text-6xl md:text-7xl text-white drop-shadow-[0_4px_0_#000] tracking-wide mb-1">
+                    <span class="text-amber-300">BATATINHA</span> <span class="text-red-500 text-3xl sm:text-5xl">VS</span> <span class="text-cyan-300">DOCE</span>
+                </h1>
+                <p class="text-slate-200 text-xs sm:text-base max-w-md mb-5 bg-black/50 px-4 py-2 rounded-xl border border-slate-700">
+                    <strong class="text-yellow-300">Objetivo:</strong> Derrotar a Doce (Robô IA)!<br>
+                    <span class="text-slate-400 text-xs">Baseado no roteiro original da Turma da Batatinha</span>
+                </p>
+
+                <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                    <button id="playWithIntroBtn" class="flash-btn text-xl sm:text-2xl px-6 py-3">
+                        ▶ JOGAR (COM ABERTURA)
+                    </button>
+                    <button id="playDirectBtn" class="flash-btn flash-btn-blue text-lg sm:text-xl px-5 py-3">
+                        ⚡ LUTA DIRETA
+                    </button>
+                </div>
+
+                <!-- Controls Legend -->
+                <div class="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-900/90 p-3 rounded-xl border-2 border-slate-700 max-w-xl w-full">
+                    <div class="flex flex-col items-center">
+                        <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-yellow-300 font-bold">◄ ► / A D</span>
+                        <span class="text-slate-300 mt-1">Mover</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-yellow-300 font-bold">▲ / W</span>
+                        <span class="text-slate-300 mt-1">Pular</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold">ESPAÇO</span>
+                        <span class="text-slate-300 mt-1">Soco / Chute</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-cyan-300 font-bold">Z / ENTER</span>
+                        <span class="text-slate-300 mt-1">Super Laser</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Intro Cutscene Skip Button Overlay -->
+            <div id="introOverlay" class="hidden absolute inset-0 pointer-events-none z-20">
+                <div class="absolute top-3 left-3 bg-black/75 border-2 border-yellow-400 px-3 py-1 rounded-lg">
+                    <span class="flash-font text-yellow-400 text-sm sm:text-base tracking-wider">🎬 ABERTURA: TURMA DA BATATINHA</span>
+                </div>
+                <button id="skipIntroBtn" class="pointer-events-auto absolute top-3 right-3 flash-btn flash-btn-red flash-btn-sm">
+                    PULAR ABERTURA ⏭
+                </button>
+            </div>
+
+            <!-- End Game Overlay -->
+            <div id="endOverlay" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center z-20">
+                <div id="endBadge" class="px-4 py-1 rounded-full border-2 border-black font-bold text-xs sm:text-sm mb-2 bg-yellow-400 text-black">
+                    FIM DE LUTA
+                </div>
+                <h2 id="endTitle" class="flash-font text-4xl sm:text-6xl text-yellow-300 drop-shadow-[0_4px_0_#000] mb-2">
+                    VITÓRIA! VOCÊ DERROTOU A DOCE!
+                </h2>
+                <p id="endSubtitle" class="text-slate-200 text-sm sm:text-lg mb-6 max-w-md">
+                    Batatinha provou sua força na neblina!
+                </p>
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button id="playAgainBtn" class="flash-btn text-xl px-6 py-3">
+                        🔄 JOGAR NOVAMENTE
+                    </button>
+                    <button id="replayIntroBtn" class="flash-btn flash-btn-purple text-lg px-5 py-3">
+                        🎬 VER ABERTURA
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Screen Arcade Controls (Works on Desktop Click & Mobile Touch) -->
+        <div class="bg-slate-900 border-t-4 border-black p-2.5 sm:p-3 flex items-center justify-between gap-2">
+            <!-- D-Pad Left / Right / Jump -->
+            <div class="flex items-center gap-2">
+                <button id="btnLeft" class="arcade-pad-btn w-12 h-12 sm:w-14 sm:h-14 text-xl" aria-label="Esquerda">◄</button>
+                <button id="btnRight" class="arcade-pad-btn w-12 h-12 sm:w-14 sm:h-14 text-xl" aria-label="Direita">►</button>
+                <button id="btnJump" class="arcade-pad-btn w-14 h-12 sm:w-16 sm:h-14 text-sm sm:text-base ml-1" aria-label="Pular">PULAR ▲</button>
+            </div>
+
+            <!-- Center Info Pill -->
+            <div class="hidden md:flex flex-col items-center text-center">
+                <span class="text-xs text-slate-400 font-bold">CONTROLES ARCADE</span>
+                <span class="text-[11px] text-slate-500">Teclado ou toque nos botões</span>
+            </div>
+
+            <!-- Action Buttons: Laser & Punch/Kick -->
+            <div class="flex items-center gap-2">
+                <button id="btnLaser" class="arcade-pad-btn arcade-laser-btn h-12 sm:h-14 px-3 sm:px-4 text-base sm:text-lg opacity-60" aria-label="Super Laser">
+                    ⚡ LASER (Z)
+                </button>
+                <button id="btnAttack" class="arcade-pad-btn arcade-attack-btn h-12 sm:h-14 px-4 sm:px-6 text-lg sm:text-xl" aria-label="Soco ou Chute">
+                    🥊 SOCO / CHUTE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * TURMA DA BATATINHA: BATATINHA VS. DOCE (HTML5 Canvas Flash-Style Engine)
+         * ============================================================================
+         * Includes:
+         * 1. Web Audio API procedural sound effects (punches, kicks, lasers, KO, voice blips)
+         * 2. Full animated "Abertura" cutscene faithfully adapting the hand-drawn notes
+         * 3. 2D Fighting Engine with hit-stop, screen shake, combo system, and smart AI
+         * 4. Custom Flash-style cel-shaded vector renderer for Batatinha, Doce, Kodo, Yuya
+         */
+
+        // --- DOM ELEMENTS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        const titleOverlay = document.getElementById('titleOverlay');
+        const introOverlay = document.getElementById('introOverlay');
+        const endOverlay = document.getElementById('endOverlay');
+        const endTitle = document.getElementById('endTitle');
+        const endSubtitle = document.getElementById('endSubtitle');
+        const endBadge = document.getElementById('endBadge');
+
+        const difficultySelect = document.getElementById('difficultySelect');
+        const muteBtn = document.getElementById('muteBtn');
+        const muteIcon = document.getElementById('muteIcon');
+        const muteText = document.getElementById('muteText');
+        const btnLaser = document.getElementById('btnLaser');
+
+        // Logical resolution (16:9 classic Flash stage size)
+        const STAGE_WIDTH = 960;
+        const STAGE_HEIGHT = 540;
+        const FLOOR_Y = 445;
+
+        // --- WEB AUDIO API SYNTHESIZER (No external URLs needed) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) {
+                        this.ctx = new AudioCtx();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                muteIcon.textContent = this.muted ? '🔇' : '🔊';
+                muteText.textContent = this.muted ? 'MUDO' : 'SOM';
+            }
+
+            playTone(freq, endFreq, duration, type = 'sine', vol = 0.2) {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                if (endFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+                }
+
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+
+            playNoise(duration, vol = 0.25) {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 900;
+
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(now);
+            }
+
+            swing() {
+                this.playTone(320, 110, 0.12, 'triangle', 0.15);
+            }
+
+            punch() {
+                this.playNoise(0.12, 0.3);
+                this.playTone(180, 55, 0.14, 'square', 0.22);
+            }
+
+            kick() {
+                this.playNoise(0.16, 0.35);
+                this.playTone(140, 40, 0.18, 'sawtooth', 0.26);
+            }
+
+            jump() {
+                this.playTone(180, 460, 0.18, 'sine', 0.16);
+            }
+
+            laser() {
+                this.playTone(950, 180, 0.45, 'sawtooth', 0.25);
+                this.playTone(1400, 300, 0.45, 'sine', 0.2);
+            }
+
+            block() {
+                this.playTone(520, 420, 0.09, 'square', 0.15);
+            }
+
+            thud() {
+                this.playNoise(0.22, 0.35);
+                this.playTone(95, 30, 0.25, 'sine', 0.3);
+            }
+
+            dramaChord() {
+                this.playTone(110, 108, 0.7, 'sawtooth', 0.14);
+                this.playTone(165, 162, 0.7, 'sawtooth', 0.12);
+                this.playTone(220, 218, 0.7, 'triangle', 0.14);
+            }
+
+            fightStart() {
+                this.playTone(440, 440, 0.12, 'square', 0.18);
+                setTimeout(() => this.playTone(660, 880, 0.28, 'square', 0.22), 130);
+            }
+
+            ko() {
+                this.playNoise(0.4, 0.4);
+                this.playTone(260, 55, 0.65, 'sawtooth', 0.3);
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        // --- INPUT STATE ---
+        const keys = {
+            left: false,
+            right: false,
+            up: false
+        };
+
+        // --- GAME STATE ---
+        const game = {
+            state: 'TITLE', // 'TITLE', 'INTRO', 'FIGHT', 'GAMEOVER'
+            introTimer: 0,
+            introScene: 0,
+            roundTimer: 99,
+            timerAccum: 0,
+            bannerText: '',
+            bannerTimer: 0,
+            hitStop: 0,
+            shakeTime: 0,
+            shakeIntensity: 0,
+            particles: [],
+            floatingTexts: [],
+            lasers: [],
+            fogLayers: []
+        };
+
+        // Initialize drifting mist/fog clouds ("neblina")
+        for (let i = 0; i < 14; i++) {
+            game.fogLayers.push({
+                x: Math.random() * STAGE_WIDTH,
+                y: 120 + Math.random() * 310,
+                r: 90 + Math.random() * 140,
+                speed: (Math.random() * 0.6 + 0.2) * (i % 2 === 0 ? 1 : -1),
+                alpha: 0.08 + Math.random() * 0.12
+            });
+        }
+
+        // --- FIGHTER CLASS ---
+        class Fighter {
+            constructor({ name, x, facing, isPlayer, colorPrimary, colorSecondary }) {
+                this.name = name;
+                this.startX = x;
+                this.x = x;
+                this.y = FLOOR_Y;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 56;
+                this.height = 135;
+                this.facing = facing; // 1 = right, -1 = left
+                this.isPlayer = isPlayer;
+                this.colorPrimary = colorPrimary;
+                this.colorSecondary = colorSecondary;
+
+                this.maxHp = 100;
+                this.hp = 100;
+                this.energy = isPlayer ? 40 : 0; // 0 to 100 for Laser
+                this.combo = 0;
+                this.comboTimer = 0;
+
+                // Animation & Combat States
+                this.state = 'IDLE'; // IDLE, WALK, JUMP, PUNCH, KICK, LASER, HURT, BLOCK, KO
+                this.stateTimer = 0;
+                this.attackType = 'PUNCH'; // Alternates PUNCH and KICK
+                this.hasHitThisAttack = false;
+                this.animFrame = 0;
+                this.hurtFlash = 0;
+
+                // AI variables
+                this.aiDecisionTimer = 0;
+                this.aiMoveDir = 0;
+                this.aiBlocking = false;
+            }
+
+            reset() {
+                this.x = this.startX;
+                this.y = FLOOR_Y;
+                this.vx = 0;
+                this.vy = 0;
+                this.hp = this.maxHp;
+                this.energy = this.isPlayer ? 40 : 0;
+                this.combo = 0;
+                this.comboTimer = 0;
+                this.state = 'IDLE';
+                this.stateTimer = 0;
+                this.hasHitThisAttack = false;
+                this.hurtFlash = 0;
+                this.aiBlocking = false;
+            }
+
+            get isGrounded() {
+                return this.y >= FLOOR_Y;
+            }
+
+            jump() {
+                if (this.state === 'KO' || this.state === 'HURT' || this.state === 'LASER') return;
+                if (this.isGrounded) {
+                    this.vy = -15.5;
+                    this.y -= 1;
+                    if (this.state !== 'PUNCH' && this.state !== 'KICK') {
+                        this.state = 'JUMP';
+                    }
+                    sfx.jump();
+                    spawnDust(this.x, FLOOR_Y, 6);
+                }
+            }
+
+            attack() {
+                if (this.state === 'KO' || this.state === 'HURT' || this.state === 'LASER') return;
+                if (this.state === 'PUNCH' || this.state === 'KICK') return;
+
+                // Alternate between Punch and Kick
+                this.attackType = this.attackType === 'PUNCH' ? 'KICK' : 'PUNCH';
+                this.state = this.attackType;
+                this.stateTimer = this.attackType === 'PUNCH' ? 18 : 24;
+                this.hasHitThisAttack = false;
+                this.aiBlocking = false;
+                sfx.swing();
+            }
+
+            fireLaser() {
+                if (!this.isPlayer) return;
+                if (this.energy < 100) return;
+                if (this.state === 'KO' || this.state === 'HURT' || this.state === 'LASER') return;
+
+                this.energy = 0;
+                this.state = 'LASER';
+                this.stateTimer = 32;
+                this.vx = 0;
+                sfx.laser();
+                triggerShake(10, 14);
+
+                game.lasers.push({
+                    owner: this,
+                    x: this.x + this.facing * 35,
+                    y: this.y - 98,
+                    dir: this.facing,
+                    life: 26,
+                    maxLife: 26,
+                    hasHit: false
+                });
+            }
+
+            update(opponent, dt) {
+                this.animFrame += 0.14;
+                if (this.hurtFlash > 0) this.hurtFlash--;
+                if (this.comboTimer > 0) {
+                    this.comboTimer--;
+                    if (this.comboTimer === 0) this.combo = 0;
+                }
+
+                // Passive slight energy regen for Batatinha
+                if (this.isPlayer && game.state === 'FIGHT' && this.energy < 100) {
+                    this.energy = Math.min(100, this.energy + 0.04);
+                }
+
+                // State timer countdown
+                if (this.stateTimer > 0) {
+                    this.stateTimer--;
+                    if (this.stateTimer === 0 && this.state !== 'KO') {
+                        this.state = this.isGrounded ? 'IDLE' : 'JUMP';
+                    }
+                }
+
+                // Face opponent automatically when idle/walking
+                if (this.state === 'IDLE' || this.state === 'WALK' || this.state === 'JUMP') {
+                    if (opponent.x > this.x + 12) this.facing = 1;
+                    else if (opponent.x < this.x - 12) this.facing = -1;
+                }
+
+                // Movement handling
+                if (game.state === 'FIGHT' && this.state !== 'KO') {
+                    if (this.isPlayer) {
+                        this.handlePlayerMovement();
+                    } else {
+                        this.handleAI(opponent);
+                    }
+                } else if (this.state !== 'KO') {
+                    this.vx *= 0.8;
+                }
+
+                // Apply Physics
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (!this.isGrounded) {
+                    this.vy += 0.78; // Gravity
+                } else {
+                    this.y = FLOOR_Y;
+                    this.vy = 0;
+                    if (this.state === 'JUMP') {
+                        this.state = 'IDLE';
+                        spawnDust(this.x, FLOOR_Y, 5);
+                    }
+                }
+
+                // Stage Boundaries
+                const margin = 55;
+                if (this.x < margin) this.x = margin;
+                if (this.x > STAGE_WIDTH - margin) this.x = STAGE_WIDTH - margin;
+
+                // Soft push apart so fighters don't completely overlap
+                const dist = Math.abs(this.x - opponent.x);
+                if (dist < 46 && Math.abs(this.y - opponent.y) < 60 && this.state !== 'KO' && opponent.state !== 'KO') {
+                    const push = (46 - dist) * 0.5;
+                    if (this.x < opponent.x) {
+                        this.x -= push;
+                        opponent.x += push;
+                    } else {
+                        this.x += push;
+                        opponent.x -= push;
+                    }
+                }
+
+                // Check Melee Hitbox during active attack frames
+                if ((this.state === 'PUNCH' || this.state === 'KICK') && !this.hasHitThisAttack) {
+                    const activeWindow = this.state === 'PUNCH'
+                        ? (this.stateTimer <= 13 && this.stateTimer >= 6)
+                        : (this.stateTimer <= 17 && this.stateTimer >= 8);
+
+                    if (activeWindow) {
+                        const reach = this.state === 'PUNCH' ? 88 : 106;
+                        const hitX = this.x + this.facing * (reach * 0.55);
+                        const hitY = this.state === 'PUNCH' ? this.y - 82 : this.y - 62;
+
+                        if (Math.abs(hitX - opponent.x) < reach * 0.65 && Math.abs(hitY - (opponent.y - 68)) < 68) {
+                            this.hasHitThisAttack = true;
+                            const dmg = this.state === 'PUNCH' ? 8 : 12;
+                            opponent.takeHit(dmg, this.facing, this.state);
+
+                            // Reward energy and combo
+                            this.combo++;
+                            this.comboTimer = 95;
+                            if (this.isPlayer) {
+                                this.energy = Math.min(100, this.energy + (this.state === 'KICK' ? 18 : 13));
+                            }
+                        }
+                    }
+                }
+            }
+
+            handlePlayerMovement() {
+                if (this.state === 'HURT' || this.state === 'LASER') {
+                    this.vx *= 0.85;
+                    return;
+                }
+
+                const speed = (this.state === 'PUNCH' || this.state === 'KICK') ? 2.2 : 5.6;
+                if (keys.left && !keys.right) {
+                    this.vx = -speed;
+                    if (this.isGrounded && this.state === 'IDLE') this.state = 'WALK';
+                } else if (keys.right && !keys.left) {
+                    this.vx = speed;
+                    if (this.isGrounded && this.state === 'IDLE') this.state = 'WALK';
+                } else {
+                    this.vx *= 0.72;
+                    if (Math.abs(this.vx) < 0.4) this.vx = 0;
+                    if (this.isGrounded && this.state === 'WALK') this.state = 'IDLE';
+                }
+            }
+
+            handleAI(player) {
+                if (this.state === 'HURT' || this.state === 'KO') {
+                    this.vx *= 0.85;
+                    return;
+                }
+
+                const diff = difficultySelect.value;
+                const reactionInterval = diff === 'easy' ? 28 : diff === 'normal' ? 16 : 9;
+                const aggression = diff === 'easy' ? 0.35 : diff === 'normal' ? 0.62 : 0.85;
+                const blockChance = diff === 'easy' ? 0.12 : diff === 'normal' ? 0.32 : 0.55;
+                const moveSpeed = diff === 'easy' ? 3.6 : diff === 'normal' ? 4.8 : 5.8;
+
+                this.aiDecisionTimer--;
+                const dx = player.x - this.x;
+                const dist = Math.abs(dx);
+
+                if (this.aiDecisionTimer <= 0) {
+                    this.aiDecisionTimer = reactionInterval + Math.floor(Math.random() * 10);
+                    this.aiBlocking = false;
+
+                    // React to player attacking nearby
+                    if ((player.state === 'PUNCH' || player.state === 'KICK') && dist < 130 && Math.random() < blockChance) {
+                        this.aiBlocking = true;
+                        this.aiMoveDir = 0;
+                        this.state = 'BLOCK';
+                        this.stateTimer = 18;
+                        return;
+                    }
+
+                    // React to incoming laser by jumping!
+                    if (game.lasers.length > 0 && this.isGrounded && Math.random() < (diff === 'easy' ? 0.25 : 0.7)) {
+                        this.jump();
+                        return;
+                    }
+
+                    if (dist > 95) {
+                        // Approach Batatinha
+                        this.aiMoveDir = dx > 0 ? 1 : -1;
+                        if (Math.random() < 0.12 && this.isGrounded) {
+                            this.jump();
+                        }
+                    } else if (dist < 52 && Math.random() < 0.35) {
+                        // Step back slightly for spacing
+                        this.aiMoveDir = dx > 0 ? -1 : 1;
+                    } else {
+                        // In fighting range
+                        this.aiMoveDir = 0;
+                        if (Math.random() < aggression) {
+                            this.attack();
+                        } else if (Math.random() < 0.18 && this.isGrounded) {
+                            this.jump();
+                        }
+                    }
+                }
+
+                if (this.state !== 'PUNCH' && this.state !== 'KICK' && this.state !== 'BLOCK') {
+                    this.vx = this.aiMoveDir * moveSpeed;
+                    if (this.isGrounded) {
+                        this.state = Math.abs(this.vx) > 0.5 ? 'WALK' : 'IDLE';
+                    }
+                } else {
+                    this.vx *= 0.75;
+                }
+            }
+
+            takeHit(damage, hitDir, attackType) {
+                if (this.state === 'KO') return;
+
+                // Check if blocking
+                if (this.state === 'BLOCK' || this.aiBlocking) {
+                    const chipDmg = Math.max(1, Math.floor(damage * 0.2));
+                    this.hp = Math.max(0, this.hp - chipDmg);
+                    this.vx = hitDir * 4;
+                    sfx.block();
+                    spawnSparks(this.x - hitDir * 15, this.y - 80, '#38bdf8', 7);
+                    spawnFloatingText(this.x, this.y - 145, 'BLOQUEOU!', '#38bdf8');
+                    if (this.hp <= 0) this.knockOut(hitDir);
+                    return;
+                }
+
+                this.hp = Math.max(0, this.hp - damage);
+                this.hurtFlash = 8;
+                this.vx = hitDir * (attackType === 'LASER' ? 12 : attackType === 'KICK' ? 8.5 : 5.5);
+
+                if (attackType === 'KICK' || attackType === 'LASER') {
+                    this.vy = -5.5;
+                    this.y -= 2;
+                }
+
+                if (attackType === 'PUNCH') sfx.punch();
+                else if (attackType === 'KICK') sfx.kick();
+
+                // Hit-stop & Camera Shake
+                game.hitStop = attackType === 'LASER' ? 6 : 3;
+                triggerShake(attackType === 'LASER' ? 11 : 6, attackType === 'LASER' ? 12 : 7);
+
+                const sparkColor = attackType === 'LASER' ? '#22d3ee' : '#facc15';
+                spawnSparks(this.x, this.y - 78, sparkColor, attackType === 'LASER' ? 18 : 11);
+                spawnFloatingText(this.x, this.y - 145, `-${damage}`, attackType === 'LASER' ? '#22d3ee' : '#f87171');
+
+                if (this.hp <= 0) {
+                    this.knockOut(hitDir);
+                } else {
+                    this.state = 'HURT';
+                    this.stateTimer = 14;
+                }
+            }
+
+            knockOut(hitDir) {
+                this.hp = 0;
+                this.state = 'KO';
+                this.vx = hitDir * 9;
+                this.vy = -9;
+                sfx.ko();
+                triggerShake(16, 18);
+                endFight(this.isPlayer ? 'DEFEAT' : 'VICTORY');
+            }
+        }
+
+        // Instantiate Batatinha (Left) and Doce (Right Robot AI)
+        const batatinha = new Fighter({
+            name: 'BATATINHA',
+            x: 240,
+            facing: 1,
+            isPlayer: true,
+            colorPrimary: '#f59e0b',
+            colorSecondary: '#fef08a'
+        });
+
+        const doce = new Fighter({
+            name: 'DOCE',
+            x: 720,
+            facing: -1,
+            isPlayer: false,
+            colorPrimary: '#ec4899',
+            colorSecondary: '#38bdf8'
+        });
+
+        // --- PARTICLE & VISUAL EFFECT HELPERS ---
+        function triggerShake(intensity, duration) {
+            game.shakeIntensity = intensity;
+            game.shakeTime = duration;
+        }
+
+        function spawnSparks(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 8;
+                game.particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 5,
+                    color,
+                    life: 14 + Math.random() * 10,
+                    maxLife: 24,
+                    type: 'SPARK'
+                });
+            }
+        }
+
+        function spawnDust(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                game.particles.push({
+                    x: x + (Math.random() - 0.5) * 30,
+                    y: y - 4,
+                    vx: (Math.random() - 0.5) * 3.5,
+                    vy: -Math.random() * 2,
+                    size: 6 + Math.random() * 8,
+                    color: 'rgba(226, 232, 240, 0.55)',
+                    life: 18,
+                    maxLife: 18,
+                    type: 'DUST'
+                });
+            }
+        }
+
+        function spawnFloatingText(x, y, text, color) {
+            game.floatingTexts.push({
+                x, y,
+                vy: -2.2,
+                text,
+                color,
+                life: 38
+            });
+        }
+
+        // --- FLOW CONTROL FUNCTIONS ---
+        function startIntro() {
+            sfx.init();
+            titleOverlay.classList.add('hidden');
+            endOverlay.classList.add('hidden');
+            introOverlay.classList.remove('hidden');
+
+            game.state = 'INTRO';
+            game.introTimer = 0;
+            game.introScene = 1;
+            sfx.laser();
+        }
+
+        function startFight() {
+            sfx.init();
+            titleOverlay.classList.add('hidden');
+            introOverlay.classList.add('hidden');
+            endOverlay.classList.add('hidden');
+
+            batatinha.reset();
+            doce.reset();
+            game.particles = [];
+            game.floatingTexts = [];
+            game.lasers = [];
+            game.roundTimer = 99;
+            game.timerAccum = 0;
+            game.state = 'FIGHT';
+            game.bannerText = 'LUTEM!';
+            game.bannerTimer = 65;
+            sfx.fightStart();
+        }
+
+        function endFight(result) {
+            game.state = 'GAMEOVER';
+            game.bannerText = 'K.O.!';
+            game.bannerTimer = 80;
+
+            setTimeout(() => {
+                if (game.state !== 'GAMEOVER') return;
+                endOverlay.classList.remove('hidden');
+                if (result === 'VICTORY') {
+                    endBadge.textContent = '★ OBJETIVO CONCLUÍDO ★';
+                    endBadge.className = 'px-4 py-1 rounded-full border-2 border-black font-bold text-xs sm:text-sm mb-2 bg-yellow-400 text-black';
+                    endTitle.textContent = 'VITÓRIA! VOCÊ DERROTOU A DOCE!';
+                    endTitle.className = 'flash-font text-4xl sm:text-6xl text-yellow-300 drop-shadow-[0_4px_0_#000] mb-2';
+                    endSubtitle.textContent = 'Batatinha venceu o duelo contra o robô Doce!';
+                } else {
+                    endBadge.textContent = 'FIM DE JOGO';
+                    endBadge.className = 'px-4 py-1 rounded-full border-2 border-black font-bold text-xs sm:text-sm mb-2 bg-red-500 text-white';
+                    endTitle.textContent = 'DERROTA!';
+                    endTitle.className = 'flash-font text-4xl sm:text-6xl text-red-400 drop-shadow-[0_4px_0_#000] mb-2';
+                    endSubtitle.textContent = 'A Doce levou a melhor desta vez. Tente novamente!';
+                }
+            }, 1300);
+        }
+
+        // --- FLASH-STYLE VECTOR CHARACTER RENDERERS ---
+
+        /**
+         * Draws Batatinha (matching the left hand-drawn character:
+         * expressive girl with twin pigtails/ponytails and goggles perched on top of her head!)
+         */
+        function drawBatatinha(ctx, x, y, facing, state, animFrame, hurtFlash) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            if (state === 'KO') {
+                ctx.rotate(-facing * Math.PI * 0.45);
+                ctx.translate(0, -15);
+            }
+
+            ctx.scale(facing, 1);
+
+            const bob = (state === 'IDLE') ? Math.sin(animFrame * 1.4) * 3 : (state === 'WALK' ? Math.abs(Math.sin(animFrame * 2.5)) * 5 : 0);
+
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = hurtFlash > 0 ? '#ffffff' : '#090d16';
+
+            // --- LEGS ---
+            const walkSwing = state === 'WALK' ? Math.sin(animFrame * 2.5) * 16 : 0;
+
+            // Back Leg
+            ctx.beginPath();
+            ctx.moveTo(-4, -52 + bob);
+            ctx.lineTo(-14 - walkSwing, -24);
+            ctx.lineTo(-18 - walkSwing, -4);
+            ctx.stroke();
+
+            // Back Boot
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#f59e0b';
+            ctx.beginPath();
+            ctx.roundRect(-24 - walkSwing, -10, 16, 10, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Front Leg (or Kicking Leg!)
+            if (state === 'KICK') {
+                // High Flash-style Karate Kick!
+                ctx.beginPath();
+                ctx.moveTo(4, -54 + bob);
+                ctx.lineTo(36, -68 + bob);
+                ctx.lineTo(66, -76 + bob);
+                ctx.stroke();
+
+                // Kick Boot
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.roundRect(58, -86 + bob, 18, 13, 5);
+                ctx.fill();
+                ctx.stroke();
+
+                // Motion swoosh arc
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(10, -58, 62, -0.5, 0.25);
+                ctx.stroke();
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 3.5;
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(4, -52 + bob);
+                ctx.lineTo(14 + walkSwing, -24);
+                ctx.lineTo(18 + walkSwing, -4);
+                ctx.stroke();
+
+                // Front Boot
+                ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#f59e0b';
+                ctx.beginPath();
+                ctx.roundRect(12 + walkSwing, -10, 17, 10, 4);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // --- TORSO (Stylized tunic/dress over stick-figure silhouette) ---
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#fbbf24';
+            ctx.beginPath();
+            ctx.moveTo(-11, -88 + bob);
+            ctx.lineTo(11, -88 + bob);
+            ctx.lineTo(16, -48 + bob);
+            ctx.lineTo(-16, -48 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Belt / Scarf detail
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(-13, -64 + bob, 26, 6);
+            ctx.strokeRect(-13, -64 + bob, 26, 6);
+
+            // --- BACK PONYTAIL / PIGTAIL ---
+            const hairWave = Math.sin(animFrame * 1.8) * 4;
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#92400e';
+            ctx.beginPath();
+            ctx.moveTo(-10, -112 + bob);
+            ctx.quadraticCurveTo(-30, -102 + bob + hairWave, -24, -74 + bob + hairWave);
+            ctx.quadraticCurveTo(-14, -78 + bob, -10, -98 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // --- HEAD ---
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -106 + bob, 19, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // --- FRONT PIGTAIL / SIDE HAIR (Echoing the sketch's hanging hair loop) ---
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#b45309';
+            ctx.beginPath();
+            ctx.moveTo(-6, -122 + bob);
+            ctx.quadraticCurveTo(-22, -108 + bob, -16, -78 + bob - hairWave * 0.5);
+            ctx.quadraticCurveTo(-6, -80 + bob, -5, -104 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // --- EXPRESSIVE FACE ---
+            // Eye
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.ellipse(9, -106 + bob, 3.2, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Eye shine
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(10, -108 + bob, 1.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Determined eyebrow
+            ctx.beginPath();
+            ctx.moveTo(4, -113 + bob);
+            ctx.lineTo(14, -111 + bob);
+            ctx.stroke();
+
+            // Mouth
+            ctx.beginPath();
+            if (state === 'PUNCH' || state === 'KICK' || state === 'LASER') {
+                ctx.arc(10, -97 + bob, 3.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444';
+                ctx.fill();
+                ctx.stroke();
+            } else if (state === 'HURT') {
+                ctx.arc(9, -96 + bob, 4, Math.PI, 0);
+                ctx.stroke();
+            } else {
+                ctx.moveTo(6, -98 + bob);
+                ctx.quadraticCurveTo(11, -95 + bob, 14, -99 + bob);
+                ctx.stroke();
+            }
+
+            // --- SIGNATURE GOGGLES / GLASSES ON TOP OF HEAD (From the drawing!) ---
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.ellipse(1, -125 + bob, 6.5, 4.5, -0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#7dd3fc';
+            ctx.beginPath();
+            ctx.ellipse(11, -123 + bob, 6, 4.2, -0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Goggle strap
+            ctx.beginPath();
+            ctx.moveTo(-16, -116 + bob);
+            ctx.lineTo(-5, -124 + bob);
+            ctx.stroke();
+
+            // --- ARMS ---
+            if (state === 'PUNCH') {
+                // Extended Straight Punch!
+                ctx.beginPath();
+                ctx.moveTo(6, -82 + bob);
+                ctx.lineTo(54, -84 + bob);
+                ctx.stroke();
+
+                // Boxing / Fighting Glove Fist
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(58, -84 + bob, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Speed lines
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(22, -92 + bob);
+                ctx.lineTo(44, -92 + bob);
+                ctx.moveTo(26, -76 + bob);
+                ctx.lineTo(46, -76 + bob);
+                ctx.stroke();
+            } else if (state === 'LASER') {
+                // Both hands forward firing laser!
+                ctx.beginPath();
+                ctx.moveTo(6, -82 + bob);
+                ctx.lineTo(34, -95 + bob);
+                ctx.stroke();
+
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.arc(36, -96 + bob, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // Ready Guard Stance Arms
+                const guardBob = Math.cos(animFrame * 1.4) * 2;
+                ctx.beginPath();
+                ctx.moveTo(4, -82 + bob);
+                ctx.lineTo(20, -72 + bob + guardBob);
+                ctx.lineTo(26, -86 + bob + guardBob);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(26, -88 + bob + guardBob, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws Doce (matching the right hand-drawn character + Robot AI details:
+         * high bun/ponytail hair, cybernetic visor/antenna, mechanical joints, facing left!)
+         */
+        function drawDoce(ctx, x, y, facing, state, animFrame, hurtFlash) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            if (state === 'KO') {
+                ctx.rotate(-facing * Math.PI * 0.45);
+                ctx.translate(0, -15);
+            }
+
+            ctx.scale(facing, 1);
+
+            const bob = (state === 'IDLE') ? Math.sin(animFrame * 1.3 + 1) * 3 : (state === 'WALK' ? Math.abs(Math.sin(animFrame * 2.5)) * 5 : 0);
+
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = hurtFlash > 0 ? '#ffffff' : '#090d16';
+
+            // --- ROBOT LEGS ---
+            const walkSwing = state === 'WALK' ? Math.sin(animFrame * 2.5) * 16 : 0;
+
+            // Back Leg
+            ctx.beginPath();
+            ctx.moveTo(-4, -52 + bob);
+            ctx.lineTo(-14 - walkSwing, -24);
+            ctx.lineTo(-18 - walkSwing, -4);
+            ctx.stroke();
+
+            // Back Robot Foot
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#64748b';
+            ctx.beginPath();
+            ctx.roundRect(-24 - walkSwing, -10, 16, 10, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Front Leg (or Robot Kick!)
+            if (state === 'KICK') {
+                ctx.beginPath();
+                ctx.moveTo(4, -54 + bob);
+                ctx.lineTo(38, -66 + bob);
+                ctx.lineTo(68, -74 + bob);
+                ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.roundRect(60, -84 + bob, 19, 13, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(10, -58, 64, -0.5, 0.25);
+                ctx.stroke();
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 3.5;
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(4, -52 + bob);
+                ctx.lineTo(14 + walkSwing, -24);
+                ctx.lineTo(18 + walkSwing, -4);
+                ctx.stroke();
+
+                ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#94a3b8';
+                ctx.beginPath();
+                ctx.roundRect(12 + walkSwing, -10, 17, 10, 3);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // --- CYBERNETIC TORSO ---
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#ec4899';
+            ctx.beginPath();
+            ctx.moveTo(-13, -88 + bob);
+            ctx.lineTo(13, -88 + bob);
+            ctx.lineTo(15, -48 + bob);
+            ctx.lineTo(-15, -48 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Glowing Robot Core on Chest
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(3, -70 + bob, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // --- HIGH BUN & BACK PONYTAIL (Matching the right sketch's top bun + back hair!) ---
+            // Top Hair Bun
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#db2777';
+            ctx.beginPath();
+            ctx.arc(-4, -128 + bob, 9.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Back Hair Loop
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#be185d';
+            ctx.beginPath();
+            ctx.moveTo(-12, -120 + bob);
+            ctx.quadraticCurveTo(-28, -106 + bob, -18, -86 + bob);
+            ctx.quadraticCurveTo(-10, -90 + bob, -10, -106 + bob);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // --- ROBOT HEAD ---
+            ctx.fillStyle = hurtFlash > 0 ? '#fff' : '#e2e8f0';
+            ctx.beginPath();
+            ctx.arc(0, -106 + bob, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Metal Ear Bolt
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath();
+            ctx.arc(-8, -106 + bob, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Cybernetic Glowing Eye / Visor
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(3, -113 + bob, 15, 10, 4);
+            ctx.fill();
+
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(11, -108 + bob, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Robot Mouth Grille
+            ctx.beginPath();
+            ctx.moveTo(6, -96 + bob);
+            ctx.lineTo(15, -96 + bob);
+            ctx.stroke();
+
+            // --- ROBOT ARMS ---
+            if (state === 'BLOCK') {
+                // Energy Shield Block
+                ctx.beginPath();
+                ctx.moveTo(6, -82 + bob);
+                ctx.lineTo(22, -92 + bob);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(24, -84 + bob, 28, -0.8, 0.8);
+                ctx.stroke();
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 3.5;
+            } else if (state === 'PUNCH') {
+                // Rocket Piston Punch!
+                ctx.beginPath();
+                ctx.moveTo(6, -82 + bob);
+                ctx.lineTo(54, -82 + bob);
+                ctx.stroke();
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.roundRect(48, -91 + bob, 18, 18, 5);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // Guard Stance (Arms extended forward like the right figure in the drawing!)
+                const reachBob = Math.sin(animFrame * 1.4) * 2;
+                ctx.beginPath();
+                ctx.moveTo(6, -84 + bob);
+                ctx.lineTo(32, -88 + bob + reachBob);
+                ctx.moveTo(6, -76 + bob);
+                ctx.lineTo(30, -78 + bob - reachBob);
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(33, -88 + bob + reachBob, 5, 0, Math.PI * 2);
+                ctx.arc(31, -78 + bob - reachBob, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws Kodo (Intro Cutscene Character)
+         */
+        function drawKodo(ctx, x, y, fallen, almighty, timer) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            if (fallen) {
+                ctx.rotate(Math.PI * 0.48);
+                ctx.translate(0, -10);
+            }
+
+            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = '#090d16';
+
+            // Almighty Aura if Scene 4 ("Kodo Todo Poderoso")
+            if (almighty) {
+                const pulse = 1 + Math.sin(timer * 0.25) * 0.12;
+                const grad = ctx.createRadialGradient(0, -75, 10, 0, -75, 95 * pulse);
+                grad.addColorStop(0, 'rgba(250, 204, 21, 0.85)');
+                grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.45)');
+                grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, -75, 95 * pulse, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Legs
+            ctx.beginPath();
+            ctx.moveTo(-8, -50);
+            ctx.lineTo(-14, 0);
+            ctx.moveTo(8, -50);
+            ctx.lineTo(14, 0);
+            ctx.stroke();
+
+            // Cape if Almighty
+            if (almighty) {
+                ctx.fillStyle = '#7e22ce';
+                ctx.beginPath();
+                ctx.moveTo(-14, -90);
+                ctx.lineTo(14, -90);
+                ctx.lineTo(34, -10);
+                ctx.lineTo(-34, -10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Torso
+            ctx.fillStyle = almighty ? '#facc15' : '#3b82f6';
+            ctx.beginPath();
+            ctx.roundRect(-14, -90, 28, 42, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = '#fed7aa';
+            ctx.beginPath();
+            ctx.arc(0, -108, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Spiky Hair
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(-18, -112);
+            ctx.lineTo(-12, -132);
+            ctx.lineTo(-2, -122);
+            ctx.lineTo(6, -134);
+            ctx.lineTo(18, -112);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Eyes
+            ctx.fillStyle = almighty ? '#ef4444' : '#090d16';
+            ctx.beginPath();
+            ctx.arc(-6, -108, 3, 0, Math.PI * 2);
+            ctx.arc(6, -108, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Arms
+            ctx.beginPath();
+            if (almighty) {
+                ctx.moveTo(-14, -84);
+                ctx.lineTo(-36, -115);
+                ctx.moveTo(14, -84);
+                ctx.lineTo(36, -115);
+            } else {
+                ctx.moveTo(-14, -84);
+                ctx.lineTo(-24, -55);
+                ctx.moveTo(14, -84);
+                ctx.lineTo(24, -55);
+            }
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws Yuya (Intro Cutscene Character telling Batatinha to leave)
+         */
+        function drawYuya(ctx, x, y, timer) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = '#090d16';
+
+            // Legs
+            ctx.beginPath();
+            ctx.moveTo(-7, -48);
+            ctx.lineTo(-12, 0);
+            ctx.moveTo(7, -48);
+            ctx.lineTo(12, 0);
+            ctx.stroke();
+
+            // Torso
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.roundRect(-13, -86, 26, 40, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -104, 17, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Hair
+            ctx.fillStyle = '#065f46';
+            ctx.beginPath();
+            ctx.arc(0, -110, 17, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pointing Arm (telling Batatinha to go away!)
+            const pointWave = Math.sin(timer * 0.3) * 4;
+            ctx.beginPath();
+            ctx.moveTo(-13, -80);
+            ctx.lineTo(-46, -86 + pointWave);
+            ctx.moveTo(13, -80);
+            ctx.lineTo(22, -55);
+            ctx.stroke();
+
+            // Angry Eyes
+            ctx.beginPath();
+            ctx.moveTo(-10, -108);
+            ctx.lineTo(-3, -105);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- SPEECH BUBBLE HELPER FOR INTRO ---
+        function drawSpeechBubble(ctx, x, y, text, subtext = '', accent = '#facc15') {
+            ctx.save();
+            ctx.font = 'bold 20px "Fredoka", sans-serif';
+            const width = Math.max(240, ctx.measureText(text).width + 44);
+            const height = subtext ? 68 : 48;
+
+            // Box
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#090d16';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.roundRect(x - width / 2, y - height, width, height, 14);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pointer triangle
+            ctx.beginPath();
+            ctx.moveTo(x - 10, y);
+            ctx.lineTo(x, y + 14);
+            ctx.lineTo(x + 12, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Text
+            ctx.fillStyle = '#090d16';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, y - (subtext ? 36 : 17));
+
+            if (subtext) {
+                ctx.font = 'bold 14px "Fredoka", sans-serif';
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillText(subtext, x, y - 14);
+            }
+            ctx.restore();
+        }
+
+        // --- BACKGROUND & MIST ("NEBLINA") RENDERER ---
+        function drawStageBackground(ctx, extraFog = false) {
+            // Dramatic twilight/misty sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
+            skyGrad.addColorStop(0, '#0f172a');
+            skyGrad.addColorStop(0.55, '#1e293b');
+            skyGrad.addColorStop(1, '#334155');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
+
+            // Glowing Moon / Spotlight in the fog
+            const moonGrad = ctx.createRadialGradient(STAGE_WIDTH * 0.5, 160, 20, STAGE_WIDTH * 0.5, 160, 260);
+            moonGrad.addColorStop(0, 'rgba(226, 232, 240, 0.25)');
+            moonGrad.addColorStop(1, 'rgba(226, 232, 240, 0)');
+            ctx.fillStyle = moonGrad;
+            ctx.fillRect(0, 0, STAGE_WIDTH, FLOOR_Y);
+
+            // Distant silhouettes (trees/pillars in mist)
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+            for (let i = 0; i < 8; i++) {
+                const px = 60 + i * 130;
+                const ph = 140 + (i % 3) * 45;
+                ctx.fillRect(px, FLOOR_Y - ph, 26, ph);
+            }
+
+            // Drifting Neblina (Mist) Clouds
+            const fogMultiplier = extraFog ? 2.4 : 1;
+            for (const fog of game.fogLayers) {
+                fog.x += fog.speed;
+                if (fog.x > STAGE_WIDTH + fog.r) fog.x = -fog.r;
+                if (fog.x < -fog.r) fog.x = STAGE_WIDTH + fog.r;
+
+                const grad = ctx.createRadialGradient(fog.x, fog.y, 10, fog.x, fog.y, fog.r);
+                const a = Math.min(0.45, fog.alpha * fogMultiplier);
+                grad.addColorStop(0, `rgba(203, 213, 225, ${a})`);
+                grad.addColorStop(1, 'rgba(203, 213, 225, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(fog.x, fog.y, fog.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Ground / Arena Floor (Echoing the clean horizontal ground line in the hand-drawn sketch!)
+            const floorGrad = ctx.createLinearGradient(0, FLOOR_Y, 0, STAGE_HEIGHT);
+            floorGrad.addColorStop(0, '#475569');
+            floorGrad.addColorStop(0.2, '#1e293b');
+            floorGrad.addColorStop(1, '#090d16');
+            ctx.fillStyle = floorGrad;
+            ctx.fillRect(0, FLOOR_Y, STAGE_WIDTH, STAGE_HEIGHT - FLOOR_Y);
+
+            // Crisp Flash Ink Horizon Line
+            ctx.strokeStyle = '#090d16';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, FLOOR_Y);
+            ctx.lineTo(STAGE_WIDTH, FLOOR_Y);
+            ctx.stroke();
+
+            // Subtle arena floor highlight line
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, FLOOR_Y + 4);
+            ctx.lineTo(STAGE_WIDTH, FLOOR_Y + 4);
+            ctx.stroke();
+        }
+
+        // --- INTRO CUTSCENE ("ABERTURA") UPDATE & DRAW ---
+        function updateAndDrawIntro() {
+            game.introTimer++;
+
+            // Scene breakdown (~3.2 seconds per beat, 13 seconds total, skippable anytime):
+            // Scene 1 (0 - 190): Batatinha fires a glowing laser into the thick mist ("neblina")
+            // Scene 2 (190 - 370): Kodo falls to the ground in the mist
+            // Scene 3 (370 - 560): Yuya appears and sends Batatinha away ("vai embora!")
+            // Scene 4 (560 - 780): Kodo Todo Poderoso (Almighty Kodo) dramatically calls out to Batatinha!
+            const t = game.introTimer;
+
+            drawStageBackground(ctx, true);
+
+            if (t < 190) {
+                // SCENE 1: Batatinha soltando um laser na neblina
+                drawBatatinha(ctx, 210, FLOOR_Y, 1, 'LASER', t * 0.15, 0);
+                drawKodo(ctx, 710, FLOOR_Y, false, false, t);
+
+                // Thick mist wall
+                ctx.fillStyle = 'rgba(226, 232, 240, 0.35)';
+                ctx.fillRect(420, 120, 480, FLOOR_Y - 120);
+
+                // Glowing Laser Beam cutting through the mist!
+                const beamWidth = Math.min(480, t * 14);
+                const laserGrad = ctx.createLinearGradient(245, 0, 245 + beamWidth, 0);
+                laserGrad.addColorStop(0, '#ffffff');
+                laserGrad.addColorStop(0.5, '#22d3ee');
+                laserGrad.addColorStop(1, '#3b82f6');
+
+                ctx.fillStyle = laserGrad;
+                ctx.fillRect(245, FLOOR_Y - 106, beamWidth, 20);
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(245, FLOOR_Y - 106, beamWidth, 20);
+
+                drawSpeechBubble(ctx, 250, FLOOR_Y - 165, 'SUPER LASER NA NEBLINA!!', 'Batatinha dispara seu raio!');
+            } else if (t < 370) {
+                // SCENE 2: Kodo caindo no chão
+                if (t === 190) sfx.thud();
+                drawBatatinha(ctx, 210, FLOOR_Y, 1, 'IDLE', t * 0.15, 0);
+                drawKodo(ctx, 690, FLOOR_Y, true, false, t);
+
+                // Impact stars around fallen Kodo
+                ctx.fillStyle = '#facc15';
+                ctx.font = 'bold 22px "Bangers"';
+                ctx.fillText('★ THUD! ★', 690, FLOOR_Y - 65);
+
+                drawSpeechBubble(ctx, 670, FLOOR_Y - 95, 'Aaaah! Kodo caiu no chão!', 'O impacto dissipou a neblina...');
+            } else if (t < 560) {
+                // SCENE 3: Yuya mandando a Batatinha embora
+                if (t === 370) sfx.swing();
+                const retreatX = t > 450 ? 210 - (t - 450) * 1.4 : 210;
+                drawBatatinha(ctx, retreatX, FLOOR_Y, t > 450 ? -1 : 1, t > 450 ? 'WALK' : 'HURT', t * 0.2, 0);
+                drawYuya(ctx, 480, FLOOR_Y, t);
+                drawKodo(ctx, 730, FLOOR_Y, true, false, t);
+
+                drawSpeechBubble(ctx, 480, FLOOR_Y - 155, 'YUYA: "VAI EMBORA, BATATINHA!"', 'Yuya expulsa Batatinha do local!');
+            } else if (t < 790) {
+                // SCENE 4: Kodo Todo Poderoso chamando a Batatinha!
+                if (t === 560) sfx.dramaChord();
+                drawBatatinha(ctx, 180, FLOOR_Y, 1, 'IDLE', t * 0.15, 0);
+                drawKodo(ctx, 670, FLOOR_Y, false, true, t);
+
+                drawSpeechBubble(ctx, 630, FLOOR_Y - 165, 'KODO TODO PODEROSO: "BATATINHAAA!"', 'O despertar supremo chama por ela!');
+
+                // Sub-banner announcing the battle
+                ctx.fillStyle = 'rgba(9, 13, 22, 0.85)';
+                ctx.fillRect(0, STAGE_HEIGHT - 64, STAGE_WIDTH, 64);
+                ctx.fillStyle = '#facc15';
+                ctx.font = 'bold 22px "Bangers", cursive';
+                ctx.textAlign = 'center';
+                ctx.fillText('PREPARE-SE PARA A LUTA: BATATINHA VS DOCE!', STAGE_WIDTH / 2, STAGE_HEIGHT - 24);
+            } else {
+                startFight();
+            }
+        }
+
+        // --- HUD RENDERER ---
+        function drawFightHUD(ctx) {
+            const barWidth = 340;
+            const barHeight = 26;
+            const topY = 26;
+
+            // --- LEFT: BATATINHA HEALTH BAR ---
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.roundRect(36, topY - 4, barWidth + 8, barHeight + 8, 8);
+            ctx.fill();
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(40, topY, barWidth, barHeight);
+
+            const p1Ratio = Math.max(0, batatinha.hp / batatinha.maxHp);
+            const p1Grad = ctx.createLinearGradient(40, 0, 40 + barWidth, 0);
+            p1Grad.addColorStop(0, '#f59e0b');
+            p1Grad.addColorStop(1, '#facc15');
+            ctx.fillStyle = p1Ratio < 0.25 ? '#ef4444' : p1Grad;
+            ctx.fillRect(40, topY, barWidth * p1Ratio, barHeight);
+
+            // Gloss shine on bar
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect(40, topY, barWidth * p1Ratio, barHeight * 0.4);
+
+            // Batatinha Name & Laser Energy Bar
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 24px "Bangers", cursive';
+            ctx.textAlign = 'left';
+            ctx.strokeStyle = '#090d16';
+            ctx.lineWidth = 4;
+            ctx.strokeText('BATATINHA (VOCÊ)', 40, topY + barHeight + 25);
+            ctx.fillText('BATATINHA (VOCÊ)', 40, topY + barHeight + 25);
+
+            // Laser Energy Gauge
+            const energyW = 190;
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(40, topY + barHeight + 33, energyW + 4, 12);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(42, topY + barHeight + 35, energyW, 8);
+            ctx.fillStyle = batatinha.energy >= 100 ? '#22d3ee' : '#0284c7';
+            ctx.fillRect(42, topY + barHeight + 35, energyW * (batatinha.energy / 100), 8);
+
+            ctx.font = 'bold 12px "Fredoka", sans-serif';
+            ctx.fillStyle = batatinha.energy >= 100 ? '#67e8f9' : '#94a3b8';
+            ctx.fillText(batatinha.energy >= 100 ? '⚡ SUPER LASER PRONTO! [Z]' : `LASER: ${Math.floor(batatinha.energy)}%`, 240, topY + barHeight + 43);
+
+            // Update on-screen laser button visual
+            if (batatinha.energy >= 100) {
+                btnLaser.classList.remove('opacity-60');
+                btnLaser.classList.add('ready');
+            } else {
+                btnLaser.classList.add('opacity-60');
+                btnLaser.classList.remove('ready');
+            }
+
+            // --- RIGHT: DOCE (ROBOT AI) HEALTH BAR ---
+            const rightBarX = STAGE_WIDTH - 40 - barWidth;
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.roundRect(rightBarX - 4, topY - 4, barWidth + 8, barHeight + 8, 8);
+            ctx.fill();
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(rightBarX, topY, barWidth, barHeight);
+
+            const p2Ratio = Math.max(0, doce.hp / doce.maxHp);
+            const p2Grad = ctx.createLinearGradient(rightBarX, 0, rightBarX + barWidth, 0);
+            p2Grad.addColorStop(0, '#ec4899');
+            p2Grad.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = p2Ratio < 0.25 ? '#ef4444' : p2Grad;
+            // Drain from left to right so full bar touches center
+            const p2FillW = barWidth * p2Ratio;
+            ctx.fillRect(rightBarX + (barWidth - p2FillW), topY, p2FillW, barHeight);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect(rightBarX + (barWidth - p2FillW), topY, p2FillW, barHeight * 0.4);
+
+            ctx.fillStyle = '#f472b6';
+            ctx.font = 'bold 24px "Bangers", cursive';
+            ctx.textAlign = 'right';
+            ctx.strokeText('DOCE (ROBÔ IA)', STAGE_WIDTH - 40, topY + barHeight + 25);
+            ctx.fillText('DOCE (ROBÔ IA)', STAGE_WIDTH - 40, topY + barHeight + 25);
+
+            // --- CENTER ROUND TIMER ---
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.roundRect(STAGE_WIDTH / 2 - 38, topY - 8, 76, 54, 12);
+            ctx.fill();
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = game.roundTimer <= 15 ? '#ef4444' : '#ffffff';
+            ctx.font = 'bold 34px "Bangers", cursive';
+            ctx.textAlign = 'center';
+            ctx.fillText(String(Math.ceil(game.roundTimer)).padStart(2, '0'), STAGE_WIDTH / 2, topY + 31);
+
+            // --- COMBO COUNTER ---
+            if (batatinha.combo >= 2) {
+                ctx.save();
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 34px "Bangers", cursive';
+                ctx.fillStyle = '#facc15';
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 5;
+                const comboText = `${batatinha.combo} HITS COMBO!`;
+                ctx.strokeText(comboText, 42, 135);
+                ctx.fillText(comboText, 42, 135);
+                ctx.restore();
+            }
+        }
+
+        // --- MAIN LOOP ---
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            // Hit-stop freeze frame for crunchy Flash arcade impact
+            if (game.hitStop > 0) {
+                game.hitStop--;
+                return;
+            }
+
+            ctx.save();
+
+            // Screen shake offset
+            if (game.shakeTime > 0) {
+                game.shakeTime--;
+                const sx = (Math.random() - 0.5) * game.shakeIntensity;
+                const sy = (Math.random() - 0.5) * game.shakeIntensity;
+                ctx.translate(sx, sy);
+            }
+
+            if (game.state === 'INTRO') {
+                updateAndDrawIntro();
+                ctx.restore();
+                return;
+            }
+
+            // Draw Stage & Neblina
+            drawStageBackground(ctx, false);
+
+            // Update Timer during active fight
+            if (game.state === 'FIGHT') {
+                game.timerAccum++;
+                if (game.timerAccum >= 60) {
+                    game.timerAccum = 0;
+                    if (game.roundTimer > 0) {
+                        game.roundTimer--;
+                        if (game.roundTimer === 0) {
+                            endFight(batatinha.hp >= doce.hp ? 'VICTORY' : 'DEFEAT');
+                        }
+                    }
+                }
+            }
+
+            // Update Fighters
+            if (game.state === 'FIGHT' || game.state === 'GAMEOVER') {
+                batatinha.update(doce);
+                doce.update(batatinha);
+            } else {
+                // Title screen idle animation
+                batatinha.animFrame += 0.1;
+                doce.animFrame += 0.1;
+            }
+
+            // Ground Contact Shadows
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.beginPath();
+            ctx.ellipse(batatinha.x, FLOOR_Y + 4, 34, 8, 0, 0, Math.PI * 2);
+            ctx.ellipse(doce.x, FLOOR_Y + 4, 34, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Fighters
+            drawBatatinha(ctx, batatinha.x, batatinha.y, batatinha.facing, batatinha.state, batatinha.animFrame, batatinha.hurtFlash);
+            drawDoce(ctx, doce.x, doce.y, doce.facing, doce.state, doce.animFrame, doce.hurtFlash);
+
+            // Update & Draw Special Lasers
+            for (let i = game.lasers.length - 1; i >= 0; i--) {
+                const l = game.lasers[i];
+                l.life--;
+                const endX = l.dir === 1 ? STAGE_WIDTH : 0;
+                const beamX = Math.min(l.x, endX);
+                const beamW = Math.abs(endX - l.x);
+                const thickness = (l.life / l.maxLife) * 28;
+
+                // Outer glow
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.45)';
+                ctx.fillRect(beamX, l.y - thickness, beamW, thickness * 2);
+
+                // Core beam
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(beamX, l.y - thickness * 0.45, beamW, thickness * 0.9);
+
+                // Check Laser Hit on Doce
+                if (!l.hasHit && game.state === 'FIGHT') {
+                    const inFront = l.dir === 1 ? (doce.x >= l.x) : (doce.x <= l.x);
+                    if (inFront && Math.abs(l.y - (doce.y - 75)) < 75) {
+                        l.hasHit = true;
+                        doce.takeHit(26, l.dir, 'LASER');
+                        batatinha.combo++;
+                        batatinha.comboTimer = 100;
+                    }
+                }
+
+                if (l.life <= 0) {
+                    game.lasers.splice(i, 1);
+                }
+            }
+
+            // Update & Draw Particles
+            for (let i = game.particles.length - 1; i >= 0; i--) {
+                const p = game.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+
+                ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                if (p.life <= 0) game.particles.splice(i, 1);
+            }
+
+            // Update & Draw Floating Damage Texts
+            for (let i = game.floatingTexts.length - 1; i >= 0; i--) {
+                const ft = game.floatingTexts[i];
+                ft.y += ft.vy;
+                ft.life--;
+
+                ctx.save();
+                ctx.font = 'bold 26px "Bangers", cursive';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 4;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+
+                if (ft.life <= 0) game.floatingTexts.splice(i, 1);
+            }
+
+            // Draw HUD during Fight / GameOver
+            if (game.state === 'FIGHT' || game.state === 'GAMEOVER') {
+                drawFightHUD(ctx);
+            }
+
+            // Dramatic Flash Banner ("LUTEM!" / "K.O.!")
+            if (game.bannerTimer > 0) {
+                game.bannerTimer--;
+                ctx.save();
+                const scale = game.bannerTimer > 50 ? 1 + (game.bannerTimer - 50) * 0.05 : 1;
+                ctx.translate(STAGE_WIDTH / 2, STAGE_HEIGHT * 0.38);
+                ctx.scale(scale, scale);
+
+                ctx.font = 'bold 84px "Bangers", cursive';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#090d16';
+                ctx.lineWidth = 10;
+                ctx.strokeText(game.bannerText, 0, 0);
+
+                ctx.fillStyle = game.bannerText === 'K.O.!' ? '#ef4444' : '#facc15';
+                ctx.fillText(game.bannerText, 0, 0);
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        // --- RESPONSIVE CANVAS SIZING ---
+        function resizeCanvas() {
+            canvas.width = STAGE_WIDTH;
+            canvas.height = STAGE_HEIGHT;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- KEYBOARD CONTROLS ---
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                if (game.state === 'FIGHT') batatinha.jump();
+            }
+            if (e.code === 'Space') {
+                if (game.state === 'FIGHT') batatinha.attack();
+            }
+            if (e.code === 'KeyZ' || e.code === 'Enter') {
+                if (game.state === 'FIGHT') batatinha.fireLaser();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+        });
+
+        // --- ON-SCREEN BUTTONS (TOUCH + MOUSE) ---
+        function bindHoldButton(el, keyName) {
+            const press = (e) => {
+                e.preventDefault();
+                sfx.init();
+                keys[keyName] = true;
+                el.classList.add('active');
+            };
+            const release = (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                el.classList.remove('active');
+            };
+            el.addEventListener('mousedown', press);
+            el.addEventListener('mouseup', release);
+            el.addEventListener('mouseleave', release);
+            el.addEventListener('touchstart', press, { passive: false });
+            el.addEventListener('touchend', release, { passive: false });
+        }
+
+        bindHoldButton(document.getElementById('btnLeft'), 'left');
+        bindHoldButton(document.getElementById('btnRight'), 'right');
+
+        const btnJump = document.getElementById('btnJump');
+        btnJump.addEventListener('mousedown', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.jump(); });
+        btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.jump(); }, { passive: false });
+
+        const btnAttack = document.getElementById('btnAttack');
+        btnAttack.addEventListener('mousedown', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.attack(); });
+        btnAttack.addEventListener('touchstart', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.attack(); }, { passive: false });
+
+        btnLaser.addEventListener('mousedown', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.fireLaser(); });
+        btnLaser.addEventListener('touchstart', (e) => { e.preventDefault(); if (game.state === 'FIGHT') batatinha.fireLaser(); }, { passive: false });
+
+        // --- UI OVERLAY BUTTON EVENTS ---
+        document.getElementById('playWithIntroBtn').addEventListener('click', startIntro);
+        document.getElementById('playDirectBtn').addEventListener('click', startFight);
+        document.getElementById('skipIntroBtn').addEventListener('click', startFight);
+        document.getElementById('playAgainBtn').addEventListener('click', startFight);
+        document.getElementById('replayIntroBtn').addEventListener('click', startIntro);
+        muteBtn.addEventListener('click', () => sfx.toggleMute());
+
+        // --- START ENGINE ON LOAD ---
+        window.onload = function () {
+            resizeCanvas();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>

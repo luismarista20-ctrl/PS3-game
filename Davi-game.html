@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sketchbook Hero - Hand-Drawn Platformer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #e5e5e0;
+      font-family: 'Patrick Hand', cursive, sans-serif;
+    }
+    /* Subtle paper grain & vignette */
+    #paper-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, #fdfdfb 60%, #f1f0ea 100%);
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .sketch-btn {
+      font-family: 'Patrick Hand', cursive, sans-serif;
+      border: 2.5px solid #4a4a4a;
+      border-radius: 12px 16px 14px 18px / 16px 12px 18px 14px;
+      background: #fdfdfb;
+      color: #333;
+      box-shadow: 2px 3px 0px #555;
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+    .sketch-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0px 1px 0px #555;
+    }
+  </style>
+</head>
+<body>
+  <div id="paper-wrapper">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top-Left Minimalist Pencil HUD -->
+    <div id="top-hud" class="fixed top-3 left-4 z-10 flex flex-wrap items-center gap-3 pointer-events-auto">
+      <div class="px-3 py-1 bg-[#fdfdfb]/90 border-2 border-[#555] rounded-xl text-[#333] text-lg sm:text-xl shadow-[2px_2px_0_#666]">
+        Stage: <span id="stageDisplay" class="font-bold">1</span> &nbsp;|&nbsp; Score: <span id="scoreDisplay" class="font-bold">0</span>
+      </div>
+      <button id="muteBtn" class="sketch-btn px-3 py-1 text-base sm:text-lg" title="Toggle Sound">
+        🔊 Sound
+      </button>
+      <button id="restartTopBtn" class="sketch-btn px-3 py-1 text-base sm:text-lg" title="Restart Game">
+        ↺ Reset
+      </button>
+    </div>
+
+    <!-- Subtle Helper Hint Banner (fades after first action) -->
+    <div id="hintBanner" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 bg-[#fdfdfb]/95 border-2 border-[#555] rounded-2xl text-[#3a3a3a] text-base sm:text-lg text-center pointer-events-none shadow-[2px_2px_0_#666] transition-opacity duration-500 max-w-[90vw]">
+      Tap the <b>middle circle</b> of the top-right D-pad (or click middle / press <b>Space</b>) to <b>Jump & Throw Fireball!</b>
+    </div>
+
+    <!-- Modal Overlay for Game Over / Victory -->
+    <div id="overlayModal" class="hidden fixed inset-0 z-20 bg-black/25 backdrop-blur-[1px] flex items-center justify-center p-4">
+      <div class="bg-[#fdfdfb] border-[3px] border-[#444] rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-[6px_6px_0_#444]">
+        <h2 id="modalTitle" class="text-3xl sm:text-4xl font-bold text-[#2f2f2f] mb-2">Out of Hearts!</h2>
+        <p id="modalSubtitle" class="text-xl text-[#555] mb-5">Final Score: 0</p>
+        <button id="modalActionBtn" class="sketch-btn px-6 py-2.5 text-2xl font-bold cursor-pointer">
+          Draw Again!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * SKETCHBOOK HERO
+     * A 2D hand-drawn pencil platformer modeled directly after the user's sketch:
+     * - Left stick-figure boy with hair tuft & smile
+     * - 3 platforms separated by 2 spike pits
+     * - Tall chomping creature on the right high ledge
+     * - Angled cannon on the lower step firing shaded cannonballs
+     * - Warp pipe at bottom right
+     * - 3 hearts in bottom-left
+     * - D-pad in top-right with < ^ > v and a central circle button that triggers Jump + Fireball!
+     */
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI DOM references
+    const stageDisplay = document.getElementById('stageDisplay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const muteBtn = document.getElementById('muteBtn');
+    const restartTopBtn = document.getElementById('restartTopBtn');
+    const hintBanner = document.getElementById('hintBanner');
+    const overlayModal = document.getElementById('overlayModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+    const modalActionBtn = document.getElementById('modalActionBtn');
+
+    // Virtual coordinate space (1280 x 720) scaled cleanly to any screen
+    const VW = 1280;
+    const VH = 720;
+
+    // Audio Synthesizer using Web Audio API (no external sound URLs)
+    let audioCtx = null;
+    let isMuted = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (isMuted) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'jumpFire') {
+        // Upward jump sweep + crisp fireball pop
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.16);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+        osc.start(now);
+        osc.stop(now + 0.19);
+      } else if (type === 'enemyHit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(95, now + 0.22);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.23);
+        osc.start(now);
+        osc.stop(now + 0.24);
+      } else if (type === 'cannon') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(48, now + 0.15);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      } else if (type === 'hurt') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.linearRampToValueAtTime(90, now + 0.28);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.31);
+      } else if (type === 'stageClear') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(440, now + 0.09);
+        osc.frequency.setValueAtTime(660, now + 0.18);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      }
+    }
+
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isMuted = !isMuted;
+      muteBtn.textContent = isMuted ? '🔇 Muted' : '🔊 Sound';
+    });
+
+    // Game State
+    const state = {
+      stage: 1,
+      score: 0,
+      hearts: 3,
+      maxHearts: 3,
+      gameOver: false,
+      stageTransitionTimer: 0,
+      wobbleTime: 0,
+      hintDismissed: false,
+      fireCooldown: 0,
+      screenShake: 0
+    };
+
+    // Player Entity (matches the cute stick boy on the left of the sketch)
+    const player = {
+      x: 200,
+      y: 455,
+      vx: 0,
+      vy: 0,
+      width: 44,
+      height: 112,
+      speed: 340,
+      jumpPower: -720,
+      onGround: false,
+      facing: 1, // 1 = right, -1 = left
+      walkCycle: 0,
+      invulnTimer: 0,
+      mouthOpenTimer: 0
+    };
+
+    // Level Geometry matching the user's pencil sketch
+    // Platform 1 (left), Spike Pit 1, Platform 2 (middle), Spike Pit 2, Platform 3 (stepped right block), Bottom-right Pipe
+    const platforms = [
+      // Left starting platform
+      { id: 'plat1', x: 0, y: 455, w: 350, h: 265 },
+      // Middle rectangular block
+      { id: 'plat2', x: 455, y: 455, w: 325, h: 265 },
+      // Right platform - higher left part (where chomper stands)
+      { id: 'plat3_high', x: 870, y: 455, w: 185, h: 265 },
+      // Right platform - lower right step (where angled cannon sits)
+      { id: 'plat3_low', x: 1055, y: 525, w: 110, h: 195 }
+    ];
+
+    // Spike pits between platforms
+    const spikes = [
+      // Gap 1 spikes
+      { x: 350, y: 655, w: 105, h: 65, count: 4 },
+      // Gap 2 spikes
+      { x: 780, y: 655, w: 90, h: 65, count: 3 }
+    ];
+
+    // Bottom-right goal/warp pipe
+    const goalPipe = {
+      x: 1178,
+      y: 625,
+      w: 88,
+      h: 95
+    };
+
+    // Chomping Monster on Platform 3 High Section
+    const monster = {
+      x: 935,
+      y: 455, // base at platform top
+      headY: 315,
+      hp: 2,
+      maxHp: 2,
+      alive: true,
+      respawnTimer: 0,
+      chompPhase: 0,
+      hitFlash: 0
+    };
+
+    // Angled Cannon on Platform 3 Lower Step
+    const cannon = {
+      x: 1105,
+      y: 515,
+      angle: -Math.PI * 0.72, // pointing up-left just like in the drawing
+      fireTimer: 1.6,
+      fireInterval: 2.5,
+      recoil: 0
+    };
+
+    // Projectiles & Particles
+    let fireballs = [];
+    let cannonballs = [];
+    let particles = [];
+
+    // Input Tracking
+    const keys = {
+      left: false,
+      right: false,
+      up: false,
+      down: false
+    };
+
+    // Interactive Top-Right D-Pad Hitboxes (in Virtual 1280x720 coordinates)
+    const dpad = {
+      cx: 1125,
+      cy: 125,
+      centerRadius: 26,
+      up: { x: 1105, y: 38, w: 40, h: 52 },
+      down: { x: 1105, y: 160, w: 40, h: 52 },
+      left: { x: 1038, y: 105, w: 52, h: 40 },
+      right: { x: 1160, y: 105, w: 52, h: 40 },
+      pressed: {
+        center: 0,
+        up: false,
+        down: false,
+        left: false,
+        right: false
+      }
+    };
+
+    function dismissHint() {
+      if (!state.hintDismissed) {
+        state.hintDismissed = true;
+        hintBanner.style.opacity = '0';
+      }
+    }
+
+    // Core Action: Jump AND Throw Fireball!
+    function triggerJumpAndFireball() {
+      if (state.gameOver) return;
+      dismissHint();
+      dpad.pressed.center = 0.18;
+
+      let didAction = false;
+
+      // Jump if standing on a platform
+      if (player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+        didAction = true;
+        spawnPencilDust(player.x, player.y, 6);
+      }
+
+      // Throw a fireball (can also fire mid-air with brief cooldown)
+      if (state.fireCooldown <= 0) {
+        state.fireCooldown = 0.26;
+        player.mouthOpenTimer = 0.25;
+        fireballs.push({
+          x: player.x + player.facing * 26,
+          y: player.y - 68,
+          vx: player.facing * 560,
+          vy: -130,
+          radius: 14,
+          life: 2.2,
+          spin: 0
+        });
+        didAction = true;
+      }
+
+      if (didAction) {
+        playSound('jumpFire');
+      }
+    }
+
+    function spawnPencilDust(x, y, count) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x + (Math.random() - 0.5) * 20,
+          y: y - Math.random() * 15,
+          vx: (Math.random() - 0.5) * 140,
+          vy: -Math.random() * 110 - 20,
+          size: 3 + Math.random() * 4,
+          life: 0.35 + Math.random() * 0.25,
+          maxLife: 0.6,
+          type: 'graphite'
+        });
+      }
+    }
+
+    function spawnFireSparks(x, y, count) {
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 60 + Math.random() * 180;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          size: 4 + Math.random() * 5,
+          life: 0.3 + Math.random() * 0.25,
+          maxLife: 0.55,
+          type: 'flame'
+        });
+      }
+    }
+
+    // Reset player position safely
+    function resetPlayerPosition() {
+      player.x = 175;
+      player.y = 455;
+      player.vx = 0;
+      player.vy = 0;
+      player.onGround = true;
+      player.facing = 1;
+      player.invulnTimer = 1.6;
+    }
+
+    // Setup or advance stage
+    function setupStage(stageNum) {
+      state.stage = stageNum;
+      stageDisplay.textContent = state.stage;
+      scoreDisplay.textContent = state.score;
+
+      resetPlayerPosition();
+      fireballs = [];
+      cannonballs = [];
+      particles = [];
+
+      // Reset monster & cannon scaled to stage
+      monster.alive = true;
+      monster.maxHp = Math.min(2 + Math.floor((stageNum - 1) / 2), 5);
+      monster.hp = monster.maxHp;
+      monster.hitFlash = 0;
+
+      cannon.fireInterval = Math.max(1.15, 2.5 - (stageNum - 1) * 0.22);
+      cannon.fireTimer = 1.0;
+    }
+
+    function fullRestart() {
+      state.score = 0;
+      state.hearts = state.maxHearts;
+      state.gameOver = false;
+      overlayModal.classList.add('hidden');
+      setupStage(1);
+    }
+
+    restartTopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fullRestart();
+    });
+
+    modalActionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fullRestart();
+    });
+
+    // Convert client screen coordinates to virtual 1280x720 coordinates
+    function getVirtualCoords(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = VW / rect.width;
+      const scaleY = VH / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function pointInRect(px, py, r) {
+      return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+    }
+
+    // Handle pointer/touch interactions on the canvas
+    function handlePointerDown(clientX, clientY) {
+      if (state.gameOver) return;
+      initAudio();
+      const pt = getVirtualCoords(clientX, clientY);
+
+      // 1. Check the middle circle button of the top-right D-Pad!
+      const distCenter = Math.hypot(pt.x - dpad.cx, pt.y - dpad.cy);
+      if (distCenter <= dpad.centerRadius + 10) {
+        triggerJumpAndFireball();
+        return;
+      }
+
+      // 2. Check the 4 directional buttons of the top-right D-Pad
+      if (pointInRect(pt.x, pt.y, dpad.left)) {
+        dpad.pressed.left = true;
+        dismissHint();
+        return;
+      }
+      if (pointInRect(pt.x, pt.y, dpad.right)) {
+        dpad.pressed.right = true;
+        dismissHint();
+        return;
+      }
+      if (pointInRect(pt.x, pt.y, dpad.up)) {
+        dpad.pressed.up = true;
+        triggerJumpAndFireball();
+        return;
+      }
+      if (pointInRect(pt.x, pt.y, dpad.down)) {
+        dpad.pressed.down = true;
+        dismissHint();
+        return;
+      }
+
+      // 3. Clicking/tapping anywhere in the main playfield/middle area ALSO jumps & throws a fireball!
+      triggerJumpAndFireball();
+    }
+
+    function handlePointerUp() {
+      dpad.pressed.left = false;
+      dpad.pressed.right = false;
+      dpad.pressed.up = false;
+      dpad.pressed.down = false;
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      handlePointerDown(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', handlePointerUp);
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        handlePointerDown(t.clientX, t.clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+      handlePointerUp();
+    });
+
+    // Keyboard Support (Arrow Keys / WASD + Space / Z / X / Enter)
+    window.addEventListener('keydown', (e) => {
+      if (state.gameOver) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          fullRestart();
+        }
+        return;
+      }
+
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        keys.left = true;
+        dismissHint();
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        keys.right = true;
+        dismissHint();
+      } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        keys.down = true;
+      } else if (
+        e.code === 'Space' ||
+        e.code === 'ArrowUp' ||
+        e.code === 'KeyW' ||
+        e.code === 'KeyZ' ||
+        e.code === 'KeyX'
+      ) {
+        e.preventDefault();
+        if (!e.repeat) {
+          triggerJumpAndFireball();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+    });
+
+    // Damage player & deduct a heart
+    function damagePlayer() {
+      if (player.invulnTimer > 0 || state.gameOver) return;
+
+      state.hearts = Math.max(0, state.hearts - 1);
+      state.screenShake = 0.25;
+      playSound('hurt');
+      spawnPencilDust(player.x, player.y - 50, 14);
+
+      if (state.hearts <= 0) {
+        state.gameOver = true;
+        modalTitle.textContent = 'Out of Hearts!';
+        modalSubtitle.textContent = `You reached Stage ${state.stage} with ${state.score} points!`;
+        modalActionBtn.textContent = 'Play Again';
+        overlayModal.classList.remove('hidden');
+      } else {
+        resetPlayerPosition();
+      }
+    }
+
+    // Physics & Simulation Update
+    function update(dt) {
+      state.wobbleTime += dt;
+      if (state.fireCooldown > 0) state.fireCooldown -= dt;
+      if (state.screenShake > 0) state.screenShake -= dt;
+      if (dpad.pressed.center > 0) dpad.pressed.center -= dt;
+      if (player.invulnTimer > 0) player.invulnTimer -= dt;
+      if (player.mouthOpenTimer > 0) player.mouthOpenTimer -= dt;
+
+      if (state.gameOver) return;
+
+      // Horizontal Movement
+      const moveLeft = keys.left || dpad.pressed.left;
+      const moveRight = keys.right || dpad.pressed.right;
+
+      if (moveLeft && !moveRight) {
+        player.vx = -player.speed;
+        player.facing = -1;
+      } else if (moveRight && !moveLeft) {
+        player.vx = player.speed;
+        player.facing = 1;
+      } else {
+        player.vx *= 0.78;
+        if (Math.abs(player.vx) < 8) player.vx = 0;
+      }
+
+      // Walk animation cycle
+      if (Math.abs(player.vx) > 20 && player.onGround) {
+        player.walkCycle += dt * 13;
+      } else {
+        player.walkCycle = 0;
+      }
+
+      // Apply Horizontal Movement & Wall Collisions
+      const prevX = player.x;
+      player.x += player.vx * dt;
+
+      // Screen bounds
+      if (player.x < 24) player.x = 24;
+      if (player.x > VW - 24) player.x = VW - 24;
+
+      // Side collisions against platforms
+      for (const p of platforms) {
+        if (player.y > p.y + 8) {
+          // Player feet are below platform top surface -> check side wall
+          if (prevX + 16 <= p.x && player.x + 16 > p.x) {
+            player.x = p.x - 16;
+            player.vx = 0;
+          } else if (prevX - 16 >= p.x + p.w && player.x - 16 < p.x + p.w) {
+            player.x = p.x + p.w + 16;
+            player.vx = 0;
+          }
+        }
+      }
+
+      // Apply Gravity & Vertical Movement
+      const prevY = player.y;
+      player.vy += 1720 * dt; // crisp platformer gravity
+      player.y += player.vy * dt;
+      player.onGround = false;
+
+      // Landing on top of platforms
+      if (player.vy >= 0) {
+        for (const p of platforms) {
+          if (player.x + 14 > p.x && player.x - 14 < p.x + p.w) {
+            if (prevY <= p.y + 10 && player.y >= p.y) {
+              player.y = p.y;
+              player.vy = 0;
+              player.onGround = true;
+            }
+          }
+        }
+      }
+
+      // Landing on top of the bottom-right warp pipe -> Advance to next stage!
+      if (
+        player.x + 14 > goalPipe.x &&
+        player.x - 14 < goalPipe.x + goalPipe.w &&
+        player.y >= goalPipe.y - 6
+      ) {
+        state.score += 250 * state.stage;
+        scoreDisplay.textContent = state.score;
+        playSound('stageClear');
+        spawnFireSparks(goalPipe.x + goalPipe.w / 2, goalPipe.y, 18);
+        setupStage(state.stage + 1);
+        return;
+      }
+
+      // Spike Pit Collisions
+      for (const s of spikes) {
+        if (
+          player.x + 12 > s.x + 6 &&
+          player.x - 12 < s.x + s.w - 6 &&
+          player.y >= s.y + 12
+        ) {
+          damagePlayer();
+          return;
+        }
+      }
+
+      // Falling off bottom of screen
+      if (player.y > VH + 40) {
+        damagePlayer();
+        return;
+      }
+
+      // Update Chomping Monster
+      if (monster.alive) {
+        monster.chompPhase += dt * (4.2 + state.stage * 0.35);
+        if (monster.hitFlash > 0) monster.hitFlash -= dt;
+
+        // Check collision with player
+        const distToMonster = Math.hypot(player.x - monster.x, (player.y - 45) - (monster.y - 75));
+        if (distToMonster < 46) {
+          damagePlayer();
+          return;
+        }
+      }
+
+      // Update Angled Cannon on Lower Step
+      cannon.fireTimer -= dt;
+      if (cannon.recoil > 0) cannon.recoil -= dt * 35;
+      if (cannon.fireTimer <= 0) {
+        cannon.fireTimer = cannon.fireInterval;
+        cannon.recoil = 10;
+        playSound('cannon');
+
+        // Launch shaded cannonball diagonally up-left matching the sketch
+        const speed = 340 + state.stage * 32;
+        const launchAngle = -Math.PI * 0.72 + (Math.random() - 0.5) * 0.14;
+        const muzzleX = cannon.x + Math.cos(launchAngle) * 34;
+        const muzzleY = cannon.y + Math.sin(launchAngle) * 34;
+
+        cannonballs.push({
+          x: muzzleX,
+          y: muzzleY,
+          vx: Math.cos(launchAngle) * speed,
+          vy: Math.sin(launchAngle) * speed - 180,
+          radius: 22,
+          spin: 0
+        });
+        spawnPencilDust(muzzleX, muzzleY, 7);
+      }
+
+      // Update Player Fireballs
+      for (let i = fireballs.length - 1; i >= 0; i--) {
+        const fb = fireballs[i];
+        fb.x += fb.vx * dt;
+        fb.y += fb.vy * dt;
+        fb.vy += 680 * dt; // slight bouncy arc
+        fb.life -= dt;
+        fb.spin += dt * 14;
+
+        // Bounce off platforms like classic fireballs!
+        for (const p of platforms) {
+          if (fb.x > p.x && fb.x < p.x + p.w && fb.y + fb.radius >= p.y && fb.y - fb.radius < p.y + 20 && fb.vy > 0) {
+            fb.y = p.y - fb.radius;
+            fb.vy = -310;
+            spawnFireSparks(fb.x, fb.y + fb.radius, 4);
+          }
+        }
+
+        // Hit Chomping Monster
+        if (monster.alive) {
+          const hitHead = Math.hypot(fb.x - (monster.x - 8), fb.y - monster.headY) < 42;
+          const hitNeck = Math.abs(fb.x - monster.x) < 28 && fb.y > monster.headY && fb.y < monster.y;
+          if (hitHead || hitNeck) {
+            monster.hp -= 1;
+            monster.hitFlash = 0.2;
+            playSound('enemyHit');
+            spawnFireSparks(fb.x, fb.y, 14);
+            fireballs.splice(i, 1);
+
+            if (monster.hp <= 0) {
+              monster.alive = false;
+              state.score += 150 * state.stage;
+              scoreDisplay.textContent = state.score;
+              spawnPencilDust(monster.x, monster.headY, 18);
+            }
+            continue;
+          }
+        }
+
+        // Hit incoming Cannonballs (can destroy cannonballs in mid-air!)
+        let destroyedBall = false;
+        for (let j = cannonballs.length - 1; j >= 0; j--) {
+          const cb = cannonballs[j];
+          if (Math.hypot(fb.x - cb.x, fb.y - cb.y) < fb.radius + cb.radius) {
+            spawnFireSparks(cb.x, cb.y, 12);
+            playSound('enemyHit');
+            state.score += 50;
+            scoreDisplay.textContent = state.score;
+            cannonballs.splice(j, 1);
+            fireballs.splice(i, 1);
+            destroyedBall = true;
+            break;
+          }
+        }
+        if (destroyedBall) continue;
+
+        if (fb.life <= 0 || fb.x < -40 || fb.x > VW + 40 || fb.y > VH + 40) {
+          fireballs.splice(i, 1);
+        }
+      }
+
+      // Update Cannonballs
+      for (let i = cannonballs.length - 1; i >= 0; i--) {
+        const cb = cannonballs[i];
+        cb.x += cb.vx * dt;
+        cb.y += cb.vy * dt;
+        cb.vy += 420 * dt; // arc through the air
+        cb.spin -= dt * 5;
+
+        // Check player collision
+        const playerCenterY = player.y - 52;
+        if (Math.hypot(cb.x - player.x, cb.y - playerCenterY) < cb.radius + 18) {
+          cannonballs.splice(i, 1);
+          damagePlayer();
+          return;
+        }
+
+        if (cb.x < -60 || cb.y > VH + 60) {
+          cannonballs.splice(i, 1);
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.life -= dt;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    // =========================================================================
+    // PENCIL SKETCH RENDERING HELPERS
+    // =========================================================================
+
+    // Draws a slightly organic double-pass graphite pencil line
+    function sketchLine(x1, y1, x2, y2, width = 2.6, color = '#4d4d4d') {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = width;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      const midX = (x1 + x2) / 2 + Math.sin(x1 * 0.05 + y1 * 0.05) * 0.9;
+      const midY = (y1 + y2) / 2 + Math.cos(x2 * 0.05 + y2 * 0.05) * 0.9;
+      ctx.quadraticCurveTo(midX, midY, x2, y2);
+      ctx.stroke();
+
+      // Faint second graphite stroke for authentic hand-drawn feel
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = width * 0.7;
+      ctx.beginPath();
+      ctx.moveTo(x1 + 1.2, y1 - 0.8);
+      ctx.lineTo(x2 - 0.8, y2 + 1.1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPaperLines() {
+      // Very subtle sketchbook paper texture lines
+      ctx.save();
+      ctx.strokeStyle = 'rgba(180, 185, 195, 0.14)';
+      ctx.lineWidth = 1;
+      for (let y = 60; y < VH; y += 36) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(VW, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawPlatformsAndSpikes() {
+      // Fill platforms with clean paper white so they stand out cleanly
+      ctx.fillStyle = '#fcfcf9';
+      for (const p of platforms) {
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+      }
+
+      // Draw exact outlines matching the sketch:
+      // Platform 1 (left)
+      sketchLine(0, 455, 350, 455, 3.2);
+      sketchLine(350, 455, 350, 720, 3.2);
+
+      // Platform 2 (middle)
+      sketchLine(455, 720, 455, 455, 3.2);
+      sketchLine(455, 455, 780, 455, 3.2);
+      sketchLine(780, 455, 780, 720, 3.2);
+
+      // Platform 3 (stepped right block)
+      sketchLine(870, 720, 870, 455, 3.2);
+      sketchLine(870, 455, 1055, 455, 3.2);
+      sketchLine(1055, 455, 1055, 525, 3.2);
+      sketchLine(1055, 525, 1165, 525, 3.2);
+      sketchLine(1165, 525, 1165, 720, 3.2);
+
+      // Draw Jagged Spikes in Gap 1 and Gap 2
+      for (const s of spikes) {
+        const stepW = s.w / s.count;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(s.x, VH);
+        for (let i = 0; i < s.count; i++) {
+          const sx = s.x + i * stepW;
+          const peakX = sx + stepW * 0.5;
+          const peakY = s.y + (i % 2 === 0 ? 0 : 8);
+          ctx.lineTo(peakX, peakY);
+          ctx.lineTo(sx + stepW, s.y + 38);
+        }
+        ctx.lineTo(s.x + s.w, VH);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(130, 130, 130, 0.16)';
+        ctx.fill();
+
+        // Crisp pencil outline on the spikes
+        for (let i = 0; i < s.count; i++) {
+          const sx = s.x + i * stepW;
+          const peakX = sx + stepW * 0.5;
+          const peakY = s.y + (i % 2 === 0 ? 0 : 8);
+          sketchLine(sx, i === 0 ? VH : s.y + 38, peakX, peakY, 2.8);
+          sketchLine(peakX, peakY, sx + stepW, i === s.count - 1 ? VH : s.y + 38, 2.8);
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawGoalPipe() {
+      const { x, y, w, h } = goalPipe;
+      ctx.save();
+      // Pipe body
+      ctx.fillStyle = '#f5f5f0';
+      ctx.fillRect(x + 8, y + 22, w - 16, h - 22);
+      sketchLine(x + 8, y + 22, x + 8, y + h, 2.8);
+      sketchLine(x + w - 8, y + 22, x + w - 8, y + h, 2.8);
+
+      // Pipe rim (oval/rounded rectangle at top just like bottom-right of drawing)
+      ctx.fillStyle = '#eeeee8';
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, 24, 10);
+      ctx.fill();
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = '#4d4d4d';
+      ctx.stroke();
+
+      // Inner dark pipe opening ellipse
+      ctx.beginPath();
+      ctx.ellipse(x + w / 2, y + 11, w * 0.36, 5.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(85, 85, 85, 0.25)';
+      ctx.fill();
+      ctx.stroke();
+
+      // Tiny arrow indicator above pipe
+      const bob = Math.sin(state.wobbleTime * 4) * 4;
+      ctx.fillStyle = '#555';
+      ctx.font = '20px "Patrick Hand", cursive';
+      ctx.textAlign = 'center';
+      ctx.fillText('GOAL ↓', x + w / 2, y - 10 + bob);
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      // Blink when invulnerable
+      if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 14) % 2 === 0) {
+        return;
+      }
+
+      ctx.save();
+      ctx.translate(player.x, player.y);
+
+      const walkSwing = Math.sin(player.walkCycle) * 14;
+      const armSwing = Math.cos(player.walkCycle) * 12;
+
+      // Legs (stick figure)
+      sketchLine(0, -34, -14 + walkSwing, 0, 2.8);
+      sketchLine(0, -34, 14 - walkSwing, 0, 2.8);
+
+      // Torso (stick line)
+      sketchLine(0, -68, 0, -34, 2.8);
+
+      // Arms (stick lines, right arm reaches forward when throwing fireball)
+      if (player.mouthOpenTimer > 0) {
+        sketchLine(0, -58, player.facing * 26, -64, 2.8);
+        sketchLine(0, -58, -player.facing * 14, -44, 2.8);
+      } else {
+        sketchLine(0, -58, -18 - armSwing, -40, 2.8);
+        sketchLine(0, -58, 18 + armSwing, -40, 2.8);
+      }
+
+      // Head & Hair (matching the cute round head + swept hair tuft in sketch)
+      ctx.save();
+      ctx.translate(0, -90);
+      if (player.facing === -1) ctx.scale(-1, 1);
+
+      // Round head fill
+      ctx.fillStyle = '#fdfdfb';
+      ctx.beginPath();
+      ctx.arc(0, 0, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = '#4d4d4d';
+      ctx.stroke();
+
+      // Ear on left side
+      ctx.beginPath();
+      ctx.arc(-22, 2, 5.5, Math.PI * 0.4, Math.PI * 1.6);
+      ctx.fillStyle = '#f4f4ef';
+      ctx.fill();
+      ctx.stroke();
+
+      // Swept-back hair tuft on top (shaded with graphite)
+      ctx.beginPath();
+      ctx.moveTo(-21, -4);
+      ctx.quadraticCurveTo(-24, -27, 4, -27);
+      ctx.quadraticCurveTo(22, -26, 25, -15);
+      ctx.quadraticCurveTo(10, -18, -4, -13);
+      ctx.quadraticCurveTo(-15, -10, -21, -4);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(110, 110, 110, 0.42)';
+      ctx.fill();
+      ctx.stroke();
+
+      // Two cute vertical oval eyes
+      ctx.fillStyle = '#3f3f3f';
+      ctx.beginPath();
+      ctx.ellipse(-3, 0, 2.3, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(8, 0, 2.3, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Happy smile (or open 'O' when firing a fireball!)
+      ctx.beginPath();
+      if (player.mouthOpenTimer > 0) {
+        ctx.arc(3, 10, 4, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.arc(2.5, 8, 6.5, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function drawMonster() {
+      if (!monster.alive) return;
+
+      ctx.save();
+      const chompAngle = (Math.sin(monster.chompPhase) + 1) * 0.24; // 0 to 0.48 rad
+      const sway = Math.sin(monster.chompPhase * 0.5) * 4;
+
+      // Long neck rising out of Platform 3
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = monster.hitFlash > 0 ? '#d9534f' : '#4d4d4d';
+      ctx.fillStyle = '#fafaf6';
+
+      // Neck tubes
+      ctx.beginPath();
+      ctx.moveTo(monster.x - 10, monster.y);
+      ctx.quadraticCurveTo(monster.x - 10 + sway, 385, monster.x - 12 + sway, 332);
+      ctx.lineTo(monster.x + 8 + sway, 332);
+      ctx.quadraticCurveTo(monster.x + 10 + sway, 385, monster.x + 10, monster.y);
+      ctx.fill();
+      ctx.stroke();
+
+      // Chomping Head facing left (just like the sketch!)
+      ctx.save();
+      ctx.translate(monster.x - 4 + sway, 318);
+
+      // Upper jaw
+      ctx.save();
+      ctx.rotate(chompAngle);
+      ctx.beginPath();
+      ctx.moveTo(14, -2);
+      ctx.quadraticCurveTo(14, -24, -10, -24);
+      ctx.quadraticCurveTo(-32, -24, -34, -8);
+      ctx.lineTo(-6, -4);
+      ctx.closePath();
+      ctx.fillStyle = '#f8f8f3';
+      ctx.fill();
+      ctx.stroke();
+
+      // Upper teeth
+      sketchLine(-28, -8, -24, -1, 2);
+      sketchLine(-20, -7, -16, 0, 2);
+      sketchLine(-12, -6, -9, 1, 2);
+      ctx.restore();
+
+      // Lower jaw
+      ctx.save();
+      ctx.rotate(-chompAngle);
+      ctx.beginPath();
+      ctx.moveTo(12, 4);
+      ctx.lineTo(-30, 8);
+      ctx.quadraticCurveTo(-28, 22, -6, 22);
+      ctx.quadraticCurveTo(12, 22, 12, 4);
+      ctx.closePath();
+      ctx.fillStyle = '#f8f8f3';
+      ctx.fill();
+      ctx.stroke();
+
+      // Lower teeth
+      sketchLine(-25, 8, -21, 1, 2);
+      sketchLine(-17, 7, -13, 0, 2);
+      ctx.restore();
+
+      ctx.restore();
+
+      // Small HP indicator dots above monster if maxHp > 1
+      for (let h = 0; h < monster.maxHp; h++) {
+        ctx.beginPath();
+        ctx.arc(monster.x - 12 + h * 14, 275, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = h < monster.hp ? '#555' : 'transparent';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCannon() {
+      ctx.save();
+      const recoilX = -Math.cos(cannon.angle) * cannon.recoil;
+      const recoilY = -Math.sin(cannon.angle) * cannon.recoil;
+      ctx.translate(cannon.x + recoilX, cannon.y + recoilY);
+      ctx.rotate(cannon.angle);
+
+      // Shaded graphite barrel tilted up-left on the lower step (matching sketch)
+      ctx.beginPath();
+      ctx.roundRect(-22, -20, 48, 40, 8);
+      ctx.fillStyle = 'rgba(105, 105, 105, 0.48)';
+      ctx.fill();
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = '#4d4d4d';
+      ctx.stroke();
+
+      // Cannon mouth rim
+      ctx.beginPath();
+      ctx.ellipse(24, 0, 7, 20, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(70, 70, 70, 0.55)';
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawCannonballs() {
+      for (const cb of cannonballs) {
+        ctx.save();
+        ctx.translate(cb.x, cb.y);
+        ctx.rotate(cb.spin);
+
+        // Dark graphite-shaded round boulder/cannonball
+        ctx.beginPath();
+        ctx.arc(0, 0, cb.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(85, 85, 85, 0.72)';
+        ctx.fill();
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = '#3f3f3f';
+        ctx.stroke();
+
+        // Pencil cross-hatch shading lines inside the ball
+        ctx.strokeStyle = 'rgba(45, 45, 45, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-12, -8);
+        ctx.lineTo(8, 12);
+        ctx.moveTo(-6, -14);
+        ctx.lineTo(14, 6);
+        ctx.moveTo(-14, 2);
+        ctx.lineTo(2, 16);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    function drawFireballs() {
+      for (const fb of fireballs) {
+        ctx.save();
+        ctx.translate(fb.x, fb.y);
+        ctx.rotate(fb.spin);
+
+        // Sketchy warm flame aura + pencil-drawn fireball swirl
+        ctx.beginPath();
+        for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const r = a % 2 === 0 ? fb.radius + 5 : fb.radius - 3;
+          const px = Math.cos(ang) * r;
+          const py = Math.sin(ang) * r;
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 145, 45, 0.85)';
+        ctx.fill();
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = '#4a3525';
+        ctx.stroke();
+
+        // Inner bright core
+        ctx.beginPath();
+        ctx.arc(0, 0, fb.radius * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff3b0';
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function drawParticles() {
+      for (const pt of particles) {
+        const alpha = Math.max(0, pt.life / pt.maxLife);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = pt.type === 'flame' ? '#ff8c24' : '#555';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Bottom-Left 3 Hand-Drawn Hearts (exact match to sketch)
+    function drawHeartsHUD() {
+      const startX = 95;
+      const startY = 642;
+      const spacing = 58;
+
+      for (let i = 0; i < state.maxHearts; i++) {
+        const hx = startX + i * spacing;
+        const hy = startY;
+        const isFull = i < state.hearts;
+
+        ctx.save();
+        ctx.translate(hx, hy);
+        ctx.beginPath();
+        ctx.moveTo(0, 16);
+        ctx.bezierCurveTo(-24, -2, -26, -24, -10, -24);
+        ctx.bezierCurveTo(-2, -24, 0, -14, 0, -12);
+        ctx.bezierCurveTo(0, -14, 2, -24, 10, -24);
+        ctx.bezierCurveTo(26, -24, 24, -2, 0, 16);
+        ctx.closePath();
+
+        if (isFull) {
+          ctx.fillStyle = 'rgba(225, 85, 85, 0.25)';
+          ctx.fill();
+        }
+        ctx.lineWidth = 2.8;
+        ctx.strokeStyle = isFull ? '#4d4d4d' : 'rgba(120, 120, 120, 0.4)';
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Top-Right Hand-Drawn D-Pad with Center Circle Button (exact match to sketch)
+    function drawTopRightDpad() {
+      ctx.save();
+
+      // Helper to draw each directional rectangle
+      function drawDirBox(rect, label, active) {
+        ctx.save();
+        ctx.fillStyle = active ? 'rgba(90, 90, 90, 0.22)' : 'rgba(253, 253, 251, 0.85)';
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#4d4d4d';
+        ctx.font = 'bold 24px "Patrick Hand", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 1);
+        ctx.restore();
+      }
+
+      // Draw ^, v, <, > boxes matching the sketch's cross layout
+      drawDirBox(dpad.up, '^', dpad.pressed.up || keys.up);
+      drawDirBox(dpad.down, 'v', dpad.pressed.down || keys.down);
+      drawDirBox(dpad.left, '<', dpad.pressed.left || keys.left);
+      drawDirBox(dpad.right, '>', dpad.pressed.right || keys.right);
+
+      // Draw the CENTER CIRCLE BUTTON inside the D-pad (Click for Jump + Fireball!)
+      const pulse = 1 + Math.sin(state.wobbleTime * 5) * 0.06;
+      const isCenterActive = dpad.pressed.center > 0;
+
+      ctx.save();
+      ctx.translate(dpad.cx, dpad.cy);
+      ctx.scale(isCenterActive ? 0.9 : pulse, isCenterActive ? 0.9 : pulse);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, dpad.centerRadius - 5, 0, Math.PI * 2);
+      ctx.fillStyle = isCenterActive ? 'rgba(255, 145, 45, 0.55)' : 'rgba(255, 175, 85, 0.25)';
+      ctx.fill();
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = '#4d4d4d';
+      ctx.stroke();
+
+      // Tiny label underneath D-pad so user knows the middle button jumps & shoots
+      ctx.restore();
+
+      ctx.fillStyle = '#555';
+      ctx.font = '18px "Patrick Hand", cursive';
+      ctx.textAlign = 'center';
+      ctx.fillText('Tap ○ : Jump & Fire!', dpad.cx, dpad.down.y + dpad.down.h + 22);
+
+      ctx.restore();
+    }
+
+    // Main Render Loop
+    function render() {
+      // Match canvas backing resolution to display size with crisp DPI scaling
+      const dpr = window.devicePixelRatio || 1;
+      const displayW = canvas.clientWidth;
+      const displayH = canvas.clientHeight;
+      if (canvas.width !== Math.floor(displayW * dpr) || canvas.height !== Math.floor(displayH * dpr)) {
+        canvas.width = Math.floor(displayW * dpr);
+        canvas.height = Math.floor(displayH * dpr);
+      }
+
+      ctx.save();
+      ctx.scale(canvas.width / VW, canvas.height / VH);
+
+      // Clear paper background
+      ctx.clearRect(0, 0, VW, VH);
+
+      // Apply subtle camera shake on damage
+      if (state.screenShake > 0) {
+        const mag = state.screenShake * 24;
+        ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+      }
+
+      drawPaperLines();
+      drawPlatformsAndSpikes();
+      drawGoalPipe();
+      drawCannon();
+      drawMonster();
+      drawCannonballs();
+      drawFireballs();
+      drawPlayer();
+      drawParticles();
+      drawHeartsHUD();
+      drawTopRightDpad();
+
+      ctx.restore();
+    }
+
+    // Fixed-timestep friendly animation loop
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+
+      update(dt);
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      setupStage(1);
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>

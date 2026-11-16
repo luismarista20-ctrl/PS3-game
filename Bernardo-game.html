@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sketchbook Sky Escape</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Patrick+Hand&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #d6d2c4;
+            font-family: 'Patrick Hand', cursive, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+        #game-frame {
+            position: relative;
+            width: 96vw;
+            max-width: 1100px;
+            height: 82vh;
+            max-height: 740px;
+            background: #f6f4ee;
+            border: 4px solid #2b2b2b;
+            border-radius: 14px;
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.28), inset 0 0 60px rgba(180, 172, 155, 0.35);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .sketch-btn {
+            font-family: 'Architects Daughter', cursive, sans-serif;
+            background: #fffdf7;
+            color: #222;
+            border: 3px solid #2b2b2b;
+            border-radius: 12px 18px 14px 16px / 16px 12px 18px 14px;
+            box-shadow: 4px 4px 0px #2b2b2b;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .sketch-btn:hover {
+            background: #fef3c7;
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px #2b2b2b;
+        }
+        .sketch-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px #2b2b2b;
+        }
+        .sketch-btn.selected {
+            background: #fde68a;
+            border-color: #111;
+            box-shadow: 4px 4px 0px #111;
+        }
+        .sketch-card {
+            background: rgba(250, 248, 242, 0.94);
+            border: 3px solid #2b2b2b;
+            border-radius: 18px 14px 20px 15px / 15px 20px 14px 18px;
+            box-shadow: 6px 6px 0px rgba(43, 43, 43, 0.85);
+        }
+        .title-font {
+            font-family: 'Architects Daughter', cursive, sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Control Bar (Flash Game Style Header) -->
+    <div class="w-[96vw] max-w-[1100px] flex flex-wrap items-center justify-between mb-2 px-1 gap-2">
+        <div class="flex items-center gap-2">
+            <span class="title-font text-xl sm:text-2xl font-bold text-stone-800 tracking-wide">✏️ SKETCHBOOK SKY ESCAPE</span>
+            <span class="hidden sm:inline-block text-xs bg-amber-100 border-2 border-stone-700 px-2 py-0.5 rounded-lg text-stone-800 font-bold">FLASH ARCADE EDITION</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-pause" class="sketch-btn px-3 py-1 text-sm sm:text-base" title="Pause Game (P)">⏸ Pause</button>
+            <button id="btn-mute" class="sketch-btn px-3 py-1 text-sm sm:text-base" title="Toggle Sound (M)">🔊 Sound: ON</button>
+        </div>
+    </div>
+
+    <!-- Main Game Frame -->
+    <div id="game-frame">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="start-screen" class="absolute inset-0 flex items-center justify-center p-4 bg-stone-900/15 backdrop-blur-[1px] z-20">
+            <div class="sketch-card max-w-xl w-full p-5 sm:p-7 text-center">
+                <h1 class="title-font text-3xl sm:text-4xl font-bold text-stone-900 mb-1">Sketchbook Sky Escape</h1>
+                <p class="text-stone-700 text-base sm:text-lg mb-4">Fly across the notebook sky, dodge falling bombs, and collect sketched rings!</p>
+
+                <!-- Aircraft Selection -->
+                <div class="mb-5">
+                    <p class="title-font text-sm uppercase tracking-wider text-stone-600 mb-2 font-bold">Choose Your Hand-Drawn Aircraft:</p>
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <button id="select-heli" class="sketch-btn selected p-3 flex flex-col items-center justify-center">
+                            <canvas id="preview-heli" width="130" height="80" class="mb-1 pointer-events-none"></canvas>
+                            <span class="text-base sm:text-lg text-stone-900">Sketch Chopper</span>
+                            <span class="text-xs text-stone-600 font-normal">Agile & Balanced</span>
+                        </button>
+                        <button id="select-plane" class="sketch-btn p-3 flex flex-col items-center justify-center">
+                            <canvas id="preview-plane" width="130" height="80" class="mb-1 pointer-events-none"></canvas>
+                            <span class="text-base sm:text-lg text-stone-900">Propeller Plane</span>
+                            <span class="text-xs text-stone-600 font-normal">Fast & Sleek</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Legend -->
+                <div class="bg-stone-100/90 border-2 border-dashed border-stone-400 rounded-xl p-3 mb-5 text-sm sm:text-base text-stone-700">
+                    <div class="flex flex-wrap justify-center gap-x-5 gap-y-1">
+                        <span><strong>Move:</strong> Arrow Keys / WASD</span>
+                        <span><strong>Touch / Mouse:</strong> Drag anywhere</span>
+                    </div>
+                    <div class="mt-1 text-xs sm:text-sm text-stone-600">
+                        ⭕ Collect <strong>Pencil Rings</strong> for bonus points & combos • 💣 Dodge falling bombs!
+                    </div>
+                </div>
+
+                <button id="btn-start" class="sketch-btn w-full sm:w-auto px-8 py-3 text-xl sm:text-2xl bg-amber-200 hover:bg-amber-300 text-stone-900">
+                    ✏️ TAKE OFF!
+                </button>
+            </div>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pause-screen" class="hidden absolute inset-0 flex items-center justify-center p-4 bg-stone-900/20 backdrop-blur-[1px] z-20">
+            <div class="sketch-card max-w-sm w-full p-6 text-center">
+                <h2 class="title-font text-3xl font-bold text-stone-900 mb-2">Game Paused</h2>
+                <p class="text-stone-600 mb-5">Take a breather while the ink dries!</p>
+                <div class="flex flex-col gap-3">
+                    <button id="btn-resume" class="sketch-btn py-2.5 text-lg bg-amber-200">▶ Resume Flight</button>
+                    <button id="btn-quit" class="sketch-btn py-2 text-base">🏠 Change Aircraft</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="gameover-screen" class="hidden absolute inset-0 flex items-center justify-center p-4 bg-stone-900/25 backdrop-blur-[1px] z-20">
+            <div class="sketch-card max-w-md w-full p-6 text-center">
+                <h2 class="title-font text-3xl sm:text-4xl font-bold text-stone-900 mb-1">Crumpled Paper!</h2>
+                <p class="text-stone-600 text-base mb-4">Your aircraft took too many hits.</p>
+
+                <div class="bg-stone-100 border-2 border-stone-700 rounded-xl p-4 mb-5 grid grid-cols-2 gap-3">
+                    <div>
+                        <div class="text-xs uppercase text-stone-500 font-bold">Final Score</div>
+                        <div id="final-score" class="title-font text-2xl sm:text-3xl font-bold text-stone-900">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-500 font-bold">Best Score</div>
+                        <div id="best-score" class="title-font text-2xl sm:text-3xl font-bold text-amber-700">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-500 font-bold">Rings Collected</div>
+                        <div id="final-rings" class="title-font text-xl font-bold text-stone-800">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-500 font-bold">Wave Reached</div>
+                        <div id="final-wave" class="title-font text-xl font-bold text-stone-800">1</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button id="btn-restart" class="sketch-btn px-6 py-3 text-lg bg-amber-200 flex-1">🔄 Fly Again</button>
+                    <button id="btn-menu" class="sketch-btn px-4 py-3 text-base">✈️ Aircraft</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SKETCHBOOK SKY ESCAPE
+         * Hand-drawn pencil sketch arcade game inspired by the user's notebook drawing.
+         */
+
+        // ==========================================
+        // 1. WEB AUDIO API RETRO SOUND SYNTHESIZER
+        // ==========================================
+        class SketchAudio {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.engineOsc = null;
+                this.engineGain = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                if (this.engineGain) {
+                    this.engineGain.gain.setTargetAtTime(this.muted ? 0 : 0.025, this.ctx.currentTime, 0.05);
+                }
+                return this.muted;
+            }
+
+            startEngine() {
+                if (this.muted) return;
+                this.init();
+                this.stopEngine();
+                try {
+                    this.engineOsc = this.ctx.createOscillator();
+                    this.engineGain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+
+                    this.engineOsc.type = 'sawtooth';
+                    this.engineOsc.frequency.setValueAtTime(52, this.ctx.currentTime);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(140, this.ctx.currentTime);
+
+                    this.engineGain.gain.setValueAtTime(0.022, this.ctx.currentTime);
+
+                    this.engineOsc.connect(filter);
+                    filter.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+                    this.engineOsc.start();
+                } catch (e) {}
+            }
+
+            updateEnginePitch(speedRatio) {
+                if (this.engineOsc && this.ctx && !this.muted) {
+                    const freq = 48 + speedRatio * 24;
+                    this.engineOsc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.08);
+                }
+            }
+
+            stopEngine() {
+                if (this.engineOsc) {
+                    try {
+                        this.engineOsc.stop();
+                        this.engineOsc.disconnect();
+                    } catch (e) {}
+                    this.engineOsc = null;
+                }
+            }
+
+            playRingCollect(combo = 1) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                const baseFreq = 520 + Math.min(combo, 10) * 55;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.14);
+
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.19);
+            }
+
+            playBombDrop() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(680, now);
+                osc.frequency.exponentialRampToValueAtTime(240, now + 0.35);
+
+                gain.gain.setValueAtTime(0.035, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.37);
+            }
+
+            playExplosion(isHit = false) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const duration = isHit ? 0.45 : 0.25;
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(isHit ? 420 : 280, now);
+                filter.frequency.exponentialRampToValueAtTime(60, now + duration);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(isHit ? 0.25 : 0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+
+            playNearMiss() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(340, now);
+                osc.frequency.linearRampToValueAtTime(520, now + 0.09);
+
+                gain.gain.setValueAtTime(0.07, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            }
+        }
+
+        const audio = new SketchAudio();
+
+        // ==========================================
+        // 2. PAPER TEXTURE & HAND-DRAWN RENDERER
+        // ==========================================
+        let paperPattern = null;
+
+        function createPaperTexture() {
+            const off = document.createElement('canvas');
+            off.width = 180;
+            off.height = 180;
+            const octx = off.getContext('2d');
+
+            // Base warm off-white paper color
+            octx.fillStyle = '#f7f5ef';
+            octx.fillRect(0, 0, 180, 180);
+
+            // Subtle pencil grain / fiber speckles
+            for (let i = 0; i < 650; i++) {
+                const x = Math.random() * 180;
+                const y = Math.random() * 180;
+                const alpha = Math.random() * 0.045;
+                octx.fillStyle = Math.random() > 0.5 ? `rgba(90, 85, 75, ${alpha})` : `rgba(255, 255, 255, ${alpha * 1.5})`;
+                octx.fillRect(x, y, 1.5, 1.5);
+            }
+
+            // Very faint notebook crease lines
+            octx.strokeStyle = 'rgba(160, 155, 145, 0.08)';
+            octx.lineWidth = 1;
+            octx.beginPath();
+            octx.moveTo(0, 45);
+            octx.lineTo(180, 45);
+            octx.moveTo(0, 135);
+            octx.lineTo(180, 135);
+            octx.stroke();
+
+            return off;
+        }
+
+        // Helper for sketchy double-stroke graphite lines
+        function setPencilStyle(ctx, width = 2.2, color = '#2b2b2b') {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        /**
+         * Draws the iconic Large Sketch Helicopter from the user's drawing:
+         * Rounded cockpit nose, top rotor blade bar, tail boom with spoked tail rotor,
+         * landing skids, and side cabin door with doorknob!
+         */
+        function drawSketchHelicopter(ctx, x, y, scale, rotorAngle, facingRight = true, isEnemy = false) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (!facingRight) ctx.scale(-1, 1);
+            ctx.scale(scale, scale);
+
+            const strokeCol = isEnemy ? '#3b1d1d' : '#262626';
+            const fillCol = isEnemy ? '#f3e5e5' : '#fcfbf7';
+            setPencilStyle(ctx, 2.3, strokeCol);
+
+            // Landing skids (bottom)
+            ctx.beginPath();
+            ctx.moveTo(-24, 24);
+            ctx.lineTo(-24, 35);
+            ctx.moveTo(14, 24);
+            ctx.lineTo(14, 35);
+            // Skid runner
+            ctx.moveTo(-38, 35);
+            ctx.quadraticCurveTo(-43, 35, -42, 31);
+            ctx.moveTo(-38, 35);
+            ctx.lineTo(30, 35);
+            ctx.quadraticCurveTo(35, 35, 34, 31);
+            ctx.stroke();
+
+            // Main fuselage + tail boom (exact silhouette from the bottom-right helicopter in the sketch)
+            ctx.fillStyle = fillCol;
+            ctx.beginPath();
+            // Nose
+            ctx.moveTo(-45, 6);
+            ctx.bezierCurveTo(-48, -10, -25, -22, -4, -22);
+            // Top roof
+            ctx.lineTo(16, -22);
+            // Tail boom tapering back
+            ctx.quadraticCurveTo(32, -16, 62, -20);
+            ctx.lineTo(66, -12);
+            ctx.quadraticCurveTo(35, -6, 24, 6);
+            // Belly curve
+            ctx.bezierCurveTo(22, 24, -38, 25, -45, 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Sketchy graphite shading lines along belly
+            ctx.save();
+            ctx.strokeStyle = 'rgba(45,45,45,0.22)';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(-34, 15);
+            ctx.lineTo(12, 16);
+            ctx.moveTo(-26, 19);
+            ctx.lineTo(6, 19);
+            ctx.stroke();
+            ctx.restore();
+
+            // Cockpit windshield
+            ctx.beginPath();
+            ctx.moveTo(-42, 2);
+            ctx.quadraticCurveTo(-36, -15, -14, -17);
+            ctx.lineTo(-14, 2);
+            ctx.closePath();
+            ctx.fillStyle = isEnemy ? 'rgba(210, 160, 160, 0.35)' : 'rgba(205, 222, 232, 0.45)';
+            ctx.fill();
+            ctx.stroke();
+
+            // Side Cabin Door with round doorknob (signature detail from user's drawing!)
+            ctx.beginPath();
+            ctx.rect(-8, -13, 18, 31);
+            ctx.stroke();
+            // Doorknob
+            ctx.beginPath();
+            ctx.arc(-4, 3, 2.2, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Top Rotor Mast
+            ctx.beginPath();
+            ctx.moveTo(2, -22);
+            ctx.lineTo(2, -31);
+            ctx.stroke();
+
+            // Spinning Top Rotor Blade (elongated sketch bar)
+            const bladeWidth = 56 * Math.abs(Math.cos(rotorAngle)) + 10;
+            ctx.fillStyle = '#fcfbf7';
+            ctx.beginPath();
+            ctx.rect(2 - bladeWidth, -35, bladeWidth * 2, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            // Tail Rotor with Spokes (signature circular spoked wheel at tail tip!)
+            ctx.save();
+            ctx.translate(65, -16);
+            ctx.rotate(rotorAngle * 1.6);
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.stroke();
+            // 6 spokes
+            for (let i = 0; i < 6; i++) {
+                const a = (i * Math.PI) / 3;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a) * 10, Math.sin(a) * 10);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the iconic Sketch Airplane from the user's drawing:
+         * Features the broad wings with wing-tip pods, fuselage body, cockpit,
+         * and the curved twin-blade nose propeller!
+         */
+        function drawSketchAirplane(ctx, x, y, scale, propAngle, tilt = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(tilt);
+            ctx.scale(scale, scale);
+
+            setPencilStyle(ctx, 2.3, '#262626');
+
+            // Broad Wings with Wing-tip Pods (from bottom-left plane in sketch)
+            ctx.fillStyle = '#fcfbf7';
+            ctx.beginPath();
+            // Left wing
+            ctx.moveTo(-12, -4);
+            ctx.lineTo(-46, -6);
+            ctx.lineTo(-46, -15);
+            ctx.lineTo(-54, -15);
+            ctx.lineTo(-54, 14);
+            ctx.lineTo(-46, 14);
+            ctx.lineTo(-46, 6);
+            ctx.lineTo(-12, 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Right wing
+            ctx.beginPath();
+            ctx.moveTo(12, -4);
+            ctx.lineTo(46, -6);
+            ctx.lineTo(46, -15);
+            ctx.lineTo(54, -15);
+            ctx.lineTo(54, 14);
+            ctx.lineTo(46, 14);
+            ctx.lineTo(46, 6);
+            ctx.lineTo(12, 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Little puff of exhaust smoke on left wing pod (just like in the sketch!)
+            ctx.beginPath();
+            ctx.arc(-50, -21, 4, 0, Math.PI * 2);
+            ctx.arc(-46, -24, 3.5, 0, Math.PI * 2);
+            ctx.arc(-53, -24, 3, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Main Fuselage Body
+            ctx.fillStyle = '#fcfbf7';
+            ctx.beginPath();
+            ctx.moveTo(0, -32);
+            ctx.quadraticCurveTo(14, -22, 16, 4);
+            ctx.quadraticCurveTo(16, 26, 0, 30);
+            ctx.quadraticCurveTo(-16, 26, -16, 4);
+            ctx.quadraticCurveTo(-14, -22, 0, -32);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Cockpit Canopy & Struts
+            ctx.beginPath();
+            ctx.ellipse(0, -4, 8, 12, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(205, 222, 232, 0.45)';
+            ctx.fill();
+            ctx.stroke();
+
+            // Tail Wheel / Skid
+            ctx.beginPath();
+            ctx.ellipse(0, 33, 3, 5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Curved Twin-Blade Nose Propeller (distinctive curved blades from the sketch!)
+            ctx.save();
+            ctx.translate(0, -34);
+            const propScaleX = Math.cos(propAngle);
+            ctx.scale(propScaleX, 1);
+
+            // Hub
+            ctx.fillStyle = '#fcfbf7';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Left curved blade
+            ctx.beginPath();
+            ctx.moveTo(-5, -2);
+            ctx.quadraticCurveTo(-22, -12, -20, 0);
+            ctx.quadraticCurveTo(-22, 12, -5, 2);
+            ctx.stroke();
+
+            // Right curved blade
+            ctx.beginPath();
+            ctx.moveTo(5, -2);
+            ctx.quadraticCurveTo(22, -12, 20, 0);
+            ctx.quadraticCurveTo(22, 12, 5, 2);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the Top-Down / Side Enemy Bomber Plane from the upper left/right of the sketch
+         */
+        function drawEnemyPlane(ctx, x, y, scale, propAngle, dir = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(dir * scale, scale);
+            setPencilStyle(ctx, 2.2, '#3b1d1d');
+
+            // Fuselage
+            ctx.fillStyle = '#f8ecec';
+            ctx.beginPath();
+            ctx.moveTo(-36, -6);
+            ctx.lineTo(26, -8);
+            ctx.quadraticCurveTo(40, -4, 42, 0);
+            ctx.quadraticCurveTo(40, 4, 26, 8);
+            ctx.lineTo(-36, 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Vertical Wing / Tail Fin
+            ctx.beginPath();
+            ctx.rect(-18, -26, 12, 52);
+            ctx.fill();
+            ctx.stroke();
+
+            // Nose cone & spinning prop
+            const pH = 16 * Math.abs(Math.sin(propAngle)) + 3;
+            ctx.beginPath();
+            ctx.moveTo(43, -pH);
+            ctx.lineTo(43, pH);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the exact Teardrop/Capsule Bombs and Cluster Bombs from the sketch!
+         */
+        function drawSketchBomb(ctx, bomb) {
+            ctx.save();
+            ctx.translate(bomb.x, bomb.y);
+            ctx.rotate(bomb.angle);
+            setPencilStyle(ctx, 2, '#222');
+
+            if (bomb.type === 'cluster') {
+                // The 3-dot capsule bomb from the middle of the sketch
+                ctx.fillStyle = '#f4f1ea';
+                ctx.beginPath();
+                ctx.moveTo(-10, -10);
+                ctx.quadraticCurveTo(0, -16, 10, -10);
+                ctx.quadraticCurveTo(13, -2, 5, 2);
+                ctx.lineTo(5, 14);
+                ctx.quadraticCurveTo(0, 17, -5, 14);
+                ctx.lineTo(-5, 2);
+                ctx.quadraticCurveTo(-13, -2, -10, -10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Three little circles at top (exact detail from sketch!)
+                ctx.beginPath();
+                ctx.arc(-4, -7, 2, 0, Math.PI * 2);
+                ctx.arc(4, -7, 2, 0, Math.PI * 2);
+                ctx.arc(0, -3, 2, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                // Teardrop / looped bomb from the top-right & center rows of the sketch
+                ctx.fillStyle = '#f4f1ea';
+                ctx.beginPath();
+                ctx.moveTo(0, -13);
+                ctx.bezierCurveTo(9, -3, 10, 11, 0, 12);
+                ctx.bezierCurveTo(-10, 11, -9, -3, 0, -13);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner loop detail
+                ctx.beginPath();
+                ctx.arc(0, 4, 3.5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the Collectible Donut/Ring shapes from the top left & right of the user's sketch
+         */
+        function drawSketchRing(ctx, ring) {
+            ctx.save();
+            ctx.translate(ring.x, ring.y);
+            const pulse = 1 + Math.sin(ring.pulse) * 0.08;
+            ctx.scale(pulse, pulse);
+
+            // Soft golden highlighter glow so players immediately recognize collectibles
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.45)';
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius + 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            setPencilStyle(ctx, 2.3, '#2b2b2b');
+            // Outer circle
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner hole (donut ring from top-left and top-right of the drawing!)
+            ctx.fillStyle = '#f7f5ef';
+            ctx.beginPath();
+            ctx.arc(0, 0, ring.radius * 0.36, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the 4-Square Cross Cloud / Satellite shapes from the top of the user's sketch
+         */
+        function drawCrossCloud(ctx, cloud) {
+            ctx.save();
+            ctx.translate(cloud.x, cloud.y);
+            ctx.scale(cloud.scale, cloud.scale);
+            setPencilStyle(ctx, 1.8, 'rgba(60, 60, 60, 0.55)');
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+
+            const s = 18;
+            const gap = 4;
+            const boxes = [
+                [0, 0],           // center
+                [0, -(s + gap)],  // top
+                [0, (s + gap)],   // bottom
+                [-(s + gap), 0],  // left
+                [(s + gap), 0]    // right
+            ];
+
+            boxes.forEach(([bx, by]) => {
+                ctx.beginPath();
+                ctx.rect(bx - s / 2, by - s / 2, s, s);
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the Bottom Ground Line, Ladder, Fence, and Waving Stick-Figure People from the sketch
+         */
+        function drawGroundScenery(ctx, width, height, time) {
+            const groundY = height - 46;
+            setPencilStyle(ctx, 2.3, '#2b2b2b');
+
+            // Wavy hand-drawn ground horizon line
+            ctx.beginPath();
+            ctx.moveTo(0, groundY + 12);
+            ctx.quadraticCurveTo(width * 0.25, groundY + 4, width * 0.5, groundY - 2);
+            ctx.quadraticCurveTo(width * 0.75, groundY - 8, width, groundY - 4);
+            ctx.stroke();
+
+            // Second double-sketch ground line at bottom left
+            ctx.beginPath();
+            ctx.moveTo(0, groundY + 18);
+            ctx.quadraticCurveTo(width * 0.2, groundY + 10, width * 0.35, groundY + 4);
+            ctx.stroke();
+
+            // Tall Ladder on the far left (exact element from bottom-left of sketch!)
+            const ladderX = 24;
+            ctx.beginPath();
+            ctx.moveTo(ladderX, groundY + 14);
+            ctx.lineTo(ladderX, groundY - 95);
+            ctx.moveTo(ladderX + 16, groundY + 12);
+            ctx.lineTo(ladderX + 16, groundY - 95);
+            for (let ry = groundY - 5; ry >= groundY - 85; ry -= 16) {
+                ctx.moveTo(ladderX, ry);
+                ctx.lineTo(ladderX + 16, ry);
+            }
+            ctx.stroke();
+
+            // Stick-figure Person #1 (Left, with flowing hair, smile, and waving arms)
+            const p1X = 76;
+            const p1Y = groundY + 8;
+            const wave1 = Math.sin(time * 5) * 0.35;
+
+            ctx.save();
+            ctx.translate(p1X, p1Y);
+            // Legs
+            ctx.beginPath();
+            ctx.moveTo(-22, 0);
+            ctx.lineTo(0, -34);
+            ctx.lineTo(22, 0);
+            // Torso
+            ctx.moveTo(0, -34);
+            ctx.lineTo(0, -56);
+            ctx.stroke();
+
+            // Waving Arms
+            ctx.beginPath();
+            ctx.moveTo(0, -48);
+            ctx.lineTo(-18, -54 + Math.sin(time * 6) * 8);
+            ctx.moveTo(0, -48);
+            ctx.lineTo(18, -58 - Math.sin(time * 6) * 8);
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = '#f7f5ef';
+            ctx.beginPath();
+            ctx.arc(0, -68, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Hair swoosh
+            ctx.beginPath();
+            ctx.moveTo(-10, -72);
+            ctx.quadraticCurveTo(0, -84, 24, -76);
+            ctx.quadraticCurveTo(10, -70, -6, -72);
+            ctx.stroke();
+
+            // Eyes & Smile
+            ctx.beginPath();
+            ctx.arc(-4, -70, 1.3, 0, Math.PI * 2);
+            ctx.arc(4, -70, 1.3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, -66, 5, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+            ctx.restore();
+
+            // Stick-figure Person #2 (Smaller kid cheering in the middle-left)
+            const p2X = Math.min(265, width * 0.28);
+            const p2Y = groundY + 3;
+            ctx.save();
+            ctx.translate(p2X, p2Y);
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(0, -18);
+            ctx.lineTo(10, 0);
+            ctx.moveTo(0, -18);
+            ctx.lineTo(0, -28);
+            // Cheering arms
+            ctx.moveTo(0, -24);
+            ctx.lineTo(-10, -32 + Math.cos(time * 7) * 5);
+            ctx.moveTo(0, -24);
+            ctx.lineTo(10, -32 - Math.cos(time * 7) * 5);
+            ctx.stroke();
+
+            ctx.fillStyle = '#f7f5ef';
+            ctx.beginPath();
+            ctx.arc(0, -35, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Smile
+            ctx.beginPath();
+            ctx.arc(0, -34, 3, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+            ctx.restore();
+
+            // Cross-braced Fence / Stand in the middle (exact detail from bottom center of sketch!)
+            const fenceX = Math.min(360, width * 0.38);
+            const fenceY = groundY;
+            ctx.beginPath();
+            ctx.moveTo(fenceX, fenceY);
+            ctx.lineTo(fenceX, fenceY - 34);
+            ctx.moveTo(fenceX + 28, fenceY - 2);
+            ctx.lineTo(fenceX + 28, fenceY - 36);
+            ctx.moveTo(fenceX, fenceY - 34);
+            ctx.lineTo(fenceX + 28, fenceY - 2);
+            ctx.moveTo(fenceX + 28, fenceY - 36);
+            ctx.lineTo(fenceX, fenceY);
+            ctx.stroke();
+        }
+
+        // ==========================================
+        // 3. GAME STATE & CORE ENGINE
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = 800;
+        let height = 600;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            width = rect.width;
+            height = rect.height;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game Variables
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+        let selectedVehicle = 'helicopter'; // 'helicopter' or 'airplane'
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('sketch_sky_highscore') || '0', 10);
+        let ringsCollected = 0;
+        let combo = 1;
+        let comboTimer = 0;
+        let wave = 1;
+        let survivalTime = 0;
+        let screenShake = 0;
+        let globalTime = 0;
+
+        // Player Entity
+        const player = {
+            x: 200,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            radius: 26,
+            hearts: 3,
+            maxHearts: 3,
+            invulnTimer: 0,
+            rotorAngle: 0,
+            facingRight: true,
+            tilt: 0
+        };
+
+        // Dynamic Entity Arrays
+        let enemies = [];
+        let bombs = [];
+        let rings = [];
+        let crossClouds = [];
+        let particles = [];
+        let floatingTexts = [];
+
+        // Timers for spawning
+        let enemySpawnTimer = 0;
+        let ringSpawnTimer = 0;
+        let directBombTimer = 0;
+
+        // Input Handling
+        const keys = {};
+        let pointerActive = false;
+        let pointerX = 0;
+        let pointerY = 0;
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'KeyP' || e.code === 'Escape') {
+                if (gameState === 'PLAYING') pauseGame();
+                else if (gameState === 'PAUSED') resumeGame();
+            }
+            if (e.code === 'KeyM') {
+                toggleMuteUI();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function updatePointerPos(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            pointerX = clientX - rect.left;
+            pointerY = clientY - rect.top;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            pointerActive = true;
+            updatePointerPos(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (pointerActive && gameState === 'PLAYING') {
+                updatePointerPos(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            pointerActive = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameState !== 'PLAYING') return;
+            e.preventDefault();
+            pointerActive = true;
+            const touch = e.touches[0];
+            updatePointerPos(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState !== 'PLAYING') return;
+            e.preventDefault();
+            if (pointerActive) {
+                const touch = e.touches[0];
+                updatePointerPos(touch.clientX, touch.clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', () => {
+            pointerActive = false;
+        });
+
+        // ==========================================
+        // 4. PREVIEW CANVASES ON START SCREEN
+        // ==========================================
+        function renderVehiclePreviews() {
+            const hCanvas = document.getElementById('preview-heli');
+            const hCtx = hCanvas.getContext('2d');
+            hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+            drawSketchHelicopter(hCtx, 62, 44, 0.92, 0.4, true, false);
+
+            const pCanvas = document.getElementById('preview-plane');
+            const pCtx = pCanvas.getContext('2d');
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            drawSketchAirplane(pCtx, 65, 46, 0.92, 0.3, 0);
+        }
+
+        // ==========================================
+        // 5. SPAWNERS & PARTICLE EFFECTS
+        // ==========================================
+        function initBackgroundClouds() {
+            crossClouds = [
+                { x: width * 0.14, y: 95, speed: 12, scale: 0.85 },
+                { x: width * 0.56, y: 125, speed: 9, scale: 0.95 },
+                { x: width * 0.86, y: 85, speed: 14, scale: 0.75 }
+            ];
+        }
+
+        function spawnEnemy() {
+            const fromLeft = Math.random() > 0.5;
+            const isHeli = Math.random() > 0.45;
+            const speed = (110 + wave * 18 + Math.random() * 45) * (fromLeft ? 1 : -1);
+            const y = 65 + Math.random() * 115;
+
+            enemies.push({
+                x: fromLeft ? -70 : width + 70,
+                y: y,
+                vx: speed,
+                type: isHeli ? 'heli' : 'plane',
+                rotorAngle: Math.random() * Math.PI * 2,
+                dropCooldown: 0.7 + Math.random() * 1.1,
+                bombsLeft: 2 + Math.floor(Math.random() * Math.min(wave, 4))
+            });
+        }
+
+        function spawnBomb(x, y, vx = 0, type = null) {
+            const bombType = type || (Math.random() > 0.65 ? 'cluster' : 'teardrop');
+            bombs.push({
+                x: x,
+                y: y,
+                vx: vx + (Math.random() - 0.5) * 35,
+                vy: 90 + wave * 16 + Math.random() * 40,
+                gravity: 165 + wave * 12,
+                angle: 0,
+                radius: bombType === 'cluster' ? 12 : 10,
+                type: bombType,
+                nearMissed: false
+            });
+            audio.playBombDrop();
+        }
+
+        function spawnRing() {
+            const marginX = 75;
+            const minY = 120;
+            const maxY = height - 115;
+            rings.push({
+                x: marginX + Math.random() * (width - marginX * 2),
+                y: minY + Math.random() * (maxY - minY),
+                radius: 20,
+                pulse: Math.random() * Math.PI * 2,
+                life: 11 // seconds before fading
+            });
+        }
+
+        function createSketchExplosion(x, y, size = 1, isPlayerHit = false) {
+            // Sketchy radiating burst lines
+            for (let i = 0; i < 14; i++) {
+                const angle = (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+                const speed = (60 + Math.random() * 130) * size;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 0.35 + Math.random() * 0.25,
+                    maxLife: 0.55,
+                    length: (8 + Math.random() * 12) * size,
+                    isSmoke: i % 3 === 0,
+                    isPlayerHit: isPlayerHit
+                });
+            }
+            if (isPlayerHit) {
+                screenShake = 0.4;
+            }
+        }
+
+        function addFloatingText(x, y, text, color = '#222') {
+            floatingTexts.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                life: 1.0
+            });
+        }
+
+        // ==========================================
+        // 6. GAME LIFECYCLE CONTROLS
+        // ==========================================
+        function startGame() {
+            audio.init();
+            audio.startEngine();
+
+            score = 0;
+            ringsCollected = 0;
+            combo = 1;
+            comboTimer = 0;
+            wave = 1;
+            survivalTime = 0;
+            screenShake = 0;
+
+            player.x = width * 0.5;
+            player.y = height * 0.55;
+            player.vx = 0;
+            player.vy = 0;
+            player.hearts = player.maxHearts;
+            player.invulnTimer = 1.2;
+            player.facingRight = true;
+            player.tilt = 0;
+
+            enemies = [];
+            bombs = [];
+            rings = [];
+            particles = [];
+            floatingTexts = [];
+
+            initBackgroundClouds();
+            spawnEnemy();
+            spawnRing();
+            spawnRing();
+
+            enemySpawnTimer = 2.0;
+            ringSpawnTimer = 2.5;
+            directBombTimer = 1.8;
+
+            gameState = 'PLAYING';
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('pause-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+        }
+
+        function pauseGame() {
+            if (gameState !== 'PLAYING') return;
+            gameState = 'PAUSED';
+            audio.stopEngine();
+            document.getElementById('pause-screen').classList.remove('hidden');
+        }
+
+        function resumeGame() {
+            if (gameState !== 'PAUSED') return;
+            gameState = 'PLAYING';
+            audio.startEngine();
+            document.getElementById('pause-screen').classList.add('hidden');
+        }
+
+        function returnToMenu() {
+            gameState = 'MENU';
+            audio.stopEngine();
+            document.getElementById('pause-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            renderVehiclePreviews();
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            audio.stopEngine();
+
+            const finalScoreInt = Math.floor(score);
+            if (finalScoreInt > highScore) {
+                highScore = finalScoreInt;
+                localStorage.setItem('sketch_sky_highscore', highScore.toString());
+            }
+
+            document.getElementById('final-score').textContent = finalScoreInt;
+            document.getElementById('best-score').textContent = highScore;
+            document.getElementById('final-rings').textContent = ringsCollected;
+            document.getElementById('final-wave').textContent = wave;
+            document.getElementById('gameover-screen').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 7. UPDATE LOOP
+        // ==========================================
+        function update(dt) {
+            globalTime += dt;
+
+            // Animate clouds gently even in background
+            crossClouds.forEach(c => {
+                c.x += c.speed * dt;
+                if (c.x > width + 60) c.x = -60;
+            });
+
+            if (gameState !== 'PLAYING') return;
+
+            survivalTime += dt;
+            score += dt * (10 + wave * 2);
+
+            // Wave progression every 18 seconds
+            const newWave = 1 + Math.floor(survivalTime / 18);
+            if (newWave > wave) {
+                wave = newWave;
+                addFloatingText(width / 2, height * 0.28, `WAVE ${wave}!`, '#b45309');
+            }
+
+            // Combo decay
+            if (combo > 1) {
+                comboTimer -= dt;
+                if (comboTimer <= 0) {
+                    combo = 1;
+                }
+            }
+
+            if (screenShake > 0) {
+                screenShake = Math.max(0, screenShake - dt);
+            }
+
+            if (player.invulnTimer > 0) {
+                player.invulnTimer = Math.max(0, player.invulnTimer - dt);
+            }
+
+            // --- Player Movement ---
+            const maxSpeed = selectedVehicle === 'airplane' ? 410 : 350;
+            const accel = selectedVehicle === 'airplane' ? 2200 : 1900;
+            const friction = 0.88;
+
+            let moveX = 0;
+            let moveY = 0;
+
+            if (keys['ArrowLeft'] || keys['KeyA']) moveX -= 1;
+            if (keys['ArrowRight'] || keys['KeyD']) moveX += 1;
+            if (keys['ArrowUp'] || keys['KeyW']) moveY -= 1;
+            if (keys['ArrowDown'] || keys['KeyS']) moveY += 1;
+
+            if (moveX !== 0 || moveY !== 0) {
+                const len = Math.hypot(moveX, moveY);
+                moveX /= len;
+                moveY /= len;
+                player.vx += moveX * accel * dt;
+                player.vy += moveY * accel * dt;
+            } else if (pointerActive) {
+                const dx = pointerX - player.x;
+                const dy = pointerY - player.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 6) {
+                    const pull = Math.min(dist * 9, maxSpeed);
+                    player.vx = (dx / dist) * pull;
+                    player.vy = (dy / dist) * pull;
+                } else {
+                    player.vx *= friction;
+                    player.vy *= friction;
+                }
+            } else {
+                player.vx *= Math.pow(friction, dt * 60);
+                player.vy *= Math.pow(friction, dt * 60);
+            }
+
+            // Clamp speed
+            const curSpeed = Math.hypot(player.vx, player.vy);
+            if (curSpeed > maxSpeed) {
+                player.vx = (player.vx / curSpeed) * maxSpeed;
+                player.vy = (player.vy / curSpeed) * maxSpeed;
+            }
+
+            player.x += player.vx * dt;
+            player.y += player.vy * dt;
+
+            // Keep inside sky bounds (above ground)
+            const padX = 44;
+            const minY = 44;
+            const maxY = height - 82;
+            if (player.x < padX) { player.x = padX; player.vx = 0; }
+            if (player.x > width - padX) { player.x = width - padX; player.vx = 0; }
+            if (player.y < minY) { player.y = minY; player.vy = 0; }
+            if (player.y > maxY) { player.y = maxY; player.vy = 0; }
+
+            // Facing & Tilt animation
+            if (Math.abs(player.vx) > 18) {
+                player.facingRight = player.vx > 0;
+            }
+            const targetTilt = (player.vx / maxSpeed) * 0.32;
+            player.tilt += (targetTilt - player.tilt) * 10 * dt;
+            player.rotorAngle += dt * 28;
+            audio.updateEnginePitch(curSpeed / maxSpeed);
+
+            // --- Spawners ---
+            enemySpawnTimer -= dt;
+            if (enemySpawnTimer <= 0) {
+                spawnEnemy();
+                enemySpawnTimer = Math.max(1.3, 3.8 - wave * 0.32);
+            }
+
+            directBombTimer -= dt;
+            if (directBombTimer <= 0) {
+                // Occasional high-altitude stray bomb drop
+                const dropX = 60 + Math.random() * (width - 120);
+                spawnBomb(dropX, -15, 0);
+                directBombTimer = Math.max(0.85, 2.6 - wave * 0.22);
+            }
+
+            ringSpawnTimer -= dt;
+            if (ringSpawnTimer <= 0 && rings.length < 4) {
+                spawnRing();
+                ringSpawnTimer = 2.8;
+            }
+
+            // --- Update Enemies ---
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.x += e.vx * dt;
+                e.rotorAngle += dt * 22;
+
+                e.dropCooldown -= dt;
+                if (e.dropCooldown <= 0 && e.bombsLeft > 0 && e.x > 40 && e.x < width - 40) {
+                    spawnBomb(e.x, e.y + 18, e.vx * 0.25);
+                    e.bombsLeft--;
+                    e.dropCooldown = Math.max(0.45, 1.15 - wave * 0.08);
+                }
+
+                // Check collision with enemy aircraft
+                const distToPlayer = Math.hypot(e.x - player.x, e.y - player.y);
+                if (distToPlayer < player.radius + 26 && player.invulnTimer <= 0) {
+                    damagePlayer(e.x, e.y);
+                }
+
+                if ((e.vx > 0 && e.x > width + 100) || (e.vx < 0 && e.x < -100)) {
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // --- Update Bombs ---
+            const groundLevel = height - 48;
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                const b = bombs[i];
+                b.vy += b.gravity * dt;
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+                b.angle = Math.atan2(b.vy, b.vx) - Math.PI / 2;
+
+                const dist = Math.hypot(b.x - player.x, b.y - player.y);
+
+                // Hit player check
+                if (dist < player.radius + b.radius - 4) {
+                    createSketchExplosion(b.x, b.y, 1.15, true);
+                    bombs.splice(i, 1);
+                    if (player.invulnTimer <= 0) {
+                        damagePlayer(b.x, b.y);
+                    }
+                    continue;
+                }
+
+                // Near-miss bonus check
+                if (!b.nearMissed && dist < player.radius + b.radius + 26 && b.y > player.y) {
+                    b.nearMissed = true;
+                    const bonus = 25 * combo;
+                    score += bonus;
+                    audio.playNearMiss();
+                    addFloatingText(player.x, player.y - 34, `CLOSE DODGE +${bonus}!`, '#0369a1');
+                }
+
+                // Ground impact
+                if (b.y >= groundLevel) {
+                    createSketchExplosion(b.x, groundLevel, 0.85, false);
+                    audio.playExplosion(false);
+                    bombs.splice(i, 1);
+                }
+            }
+
+            // --- Update Rings ---
+            for (let i = rings.length - 1; i >= 0; i--) {
+                const r = rings[i];
+                r.pulse += dt * 5;
+                r.life -= dt;
+
+                const dist = Math.hypot(r.x - player.x, r.y - player.y);
+                if (dist < player.radius + r.radius) {
+                    ringsCollected++;
+                    const pts = 100 * combo;
+                    score += pts;
+                    combo = Math.min(combo + 1, 8);
+                    comboTimer = 4.5;
+
+                    audio.playRingCollect(combo);
+                    addFloatingText(r.x, r.y - 15, `+${pts} (x${combo})`, '#b45309');
+                    rings.splice(i, 1);
+                    continue;
+                }
+
+                if (r.life <= 0) {
+                    rings.splice(i, 1);
+                }
+            }
+
+            // --- Update Particles & Floating Text ---
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vx *= 0.94;
+                p.vy *= 0.94;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y -= 36 * dt;
+                ft.life -= dt;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        function damagePlayer(hitX, hitY) {
+            player.hearts--;
+            player.invulnTimer = 1.8;
+            combo = 1;
+            createSketchExplosion(hitX, hitY, 1.3, true);
+            audio.playExplosion(true);
+            addFloatingText(player.x, player.y - 30, 'OUCH! -1 HEART', '#dc2626');
+
+            if (player.hearts <= 0) {
+                triggerGameOver();
+            }
+        }
+
+        // ==========================================
+        // 8. RENDER LOOP
+        // ==========================================
+        function drawHUD() {
+            // Top-Left: Hearts (Hand-drawn sketchy hearts)
+            for (let i = 0; i < player.maxHearts; i++) {
+                const hx = 28 + i * 34;
+                const hy = 28;
+                const filled = i < player.hearts;
+
+                ctx.save();
+                ctx.translate(hx, hy);
+                setPencilStyle(ctx, 2.2, '#2b2b2b');
+                ctx.fillStyle = filled ? '#ef4444' : 'rgba(200, 195, 185, 0.35)';
+
+                ctx.beginPath();
+                ctx.moveTo(0, 8);
+                ctx.bezierCurveTo(-14, -4, -14, -14, 0, -6);
+                ctx.bezierCurveTo(14, -14, 14, -4, 0, 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Top-Center: Wave & Combo indicator
+            ctx.save();
+            ctx.font = 'bold 20px "Architects Daughter", cursive';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#292524';
+            ctx.fillText(`WAVE ${wave}`, width / 2, 32);
+
+            if (combo > 1) {
+                ctx.font = 'bold 16px "Patrick Hand", cursive';
+                ctx.fillStyle = '#b45309';
+                ctx.fillText(`RING COMBO x${combo}`, width / 2, 52);
+            }
+            ctx.restore();
+
+            // Top-Right: Score & Best Score
+            ctx.save();
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 24px "Architects Daughter", cursive';
+            ctx.fillStyle = '#1c1917';
+            ctx.fillText(`SCORE: ${Math.floor(score)}`, width - 22, 33);
+
+            ctx.font = 'bold 15px "Patrick Hand", cursive';
+            ctx.fillStyle = '#57534e';
+            ctx.fillText(`BEST: ${Math.max(highScore, Math.floor(score))}`, width - 22, 53);
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.save();
+
+            // Screen shake offset on impact
+            if (screenShake > 0) {
+                const mag = screenShake * 16;
+                ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+            }
+
+            // 1. Paper Background
+            if (!paperPattern) {
+                const tex = createPaperTexture();
+                paperPattern = ctx.createPattern(tex, 'repeat');
+            }
+            ctx.fillStyle = paperPattern;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Cross-Shaped Clouds / Satellites from top of sketch
+            crossClouds.forEach(c => drawCrossCloud(ctx, c));
+
+            // 3. Ground Horizon, Ladder, Fence & Waving Stick Figures
+            drawGroundScenery(ctx, width, height, globalTime);
+
+            // 4. Collectible Sketched Rings
+            rings.forEach(r => drawSketchRing(ctx, r));
+
+            // 5. Enemy Aircraft
+            enemies.forEach(e => {
+                if (e.type === 'heli') {
+                    drawSketchHelicopter(ctx, e.x, e.y, 0.72, e.rotorAngle, e.vx > 0, true);
+                } else {
+                    drawEnemyPlane(ctx, e.x, e.y, 0.85, e.rotorAngle, e.vx > 0 ? 1 : -1);
+                }
+            });
+
+            // 6. Falling Bombs
+            bombs.forEach(b => drawSketchBomb(ctx, b));
+
+            // 7. Player Aircraft (with blink effect during invulnerability)
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                const blinkHidden = player.invulnTimer > 0 && Math.floor(player.invulnTimer * 16) % 2 === 0;
+                if (!blinkHidden) {
+                    if (selectedVehicle === 'helicopter') {
+                        ctx.save();
+                        ctx.translate(player.x, player.y);
+                        ctx.rotate(player.tilt * 0.65);
+                        drawSketchHelicopter(ctx, 0, 0, 0.88, player.rotorAngle, player.facingRight, false);
+                        ctx.restore();
+                    } else {
+                        drawSketchAirplane(ctx, player.x, player.y, 0.86, player.rotorAngle, player.tilt);
+                    }
+                }
+            }
+
+            // 8. Sketchy Explosion Lines & Smoke Puffs
+            particles.forEach(p => {
+                const alpha = Math.max(0, p.life / p.maxLife);
+                ctx.save();
+                setPencilStyle(ctx, p.isPlayerHit ? 2.6 : 2.0, `rgba(40, 40, 40, ${alpha})`);
+                if (p.isSmoke) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.length * 0.6, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    const angle = Math.atan2(p.vy, p.vx);
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - Math.cos(angle) * p.length, p.y - Math.sin(angle) * p.length);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+
+            // 9. Floating Score / Callout Texts
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.life);
+                ctx.font = 'bold 18px "Architects Daughter", cursive';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+
+            // 10. HUD Overlay during gameplay
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                drawHUD();
+            }
+
+            ctx.restore();
+        }
+
+        // Main Animation Loop
+        let lastTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+
+            update(dt);
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ==========================================
+        // 9. UI EVENT LISTENERS
+        // ==========================================
+        const btnHeli = document.getElementById('select-heli');
+        const btnPlane = document.getElementById('select-plane');
+
+        btnHeli.addEventListener('click', () => {
+            selectedVehicle = 'helicopter';
+            btnHeli.classList.add('selected');
+            btnPlane.classList.remove('selected');
+        });
+
+        btnPlane.addEventListener('click', () => {
+            selectedVehicle = 'airplane';
+            btnPlane.classList.add('selected');
+            btnHeli.classList.remove('selected');
+        });
+
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', startGame);
+        document.getElementById('btn-resume').addEventListener('click', resumeGame);
+        document.getElementById('btn-quit').addEventListener('click', returnToMenu);
+        document.getElementById('btn-menu').addEventListener('click', returnToMenu);
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            if (gameState === 'PLAYING') pauseGame();
+            else if (gameState === 'PAUSED') resumeGame();
+        });
+
+        function toggleMuteUI() {
+            const muted = audio.toggleMute();
+            document.getElementById('btn-mute').textContent = muted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
+        }
+
+        document.getElementById('btn-mute').addEventListener('click', toggleMuteUI);
+
+        // Initialize on Window Load
+        window.onload = function () {
+            resizeCanvas();
+            initBackgroundClouds();
+            renderVehiclePreviews();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
