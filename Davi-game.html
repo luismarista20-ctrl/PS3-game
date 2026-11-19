@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Sketchbook Hero - Hand-Drawn Platformer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
@@ -11,13 +11,14 @@
       box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      touch-action: none;
     }
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background-color: #e5e5e0;
       font-family: 'Patrick Hand', cursive, sans-serif;
@@ -26,18 +27,18 @@
     #paper-wrapper {
       position: relative;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: radial-gradient(circle at center, #fdfdfb 60%, #f1f0ea 100%);
       box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.08);
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
     canvas {
       display: block;
       width: 100%;
       height: 100%;
-      cursor: pointer;
     }
     .sketch-btn {
       font-family: 'Patrick Hand', cursive, sans-serif;
@@ -46,11 +47,54 @@
       background: #fdfdfb;
       color: #333;
       box-shadow: 2px 3px 0px #555;
-      transition: transform 0.08s ease, box-shadow 0.08s ease;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.08s ease;
+      touch-action: manipulation;
     }
     .sketch-btn:active {
       transform: translate(2px, 2px);
       box-shadow: 0px 1px 0px #555;
+    }
+
+    /* Ergonomic Hand-Drawn Mobile Touch Controls */
+    .touch-pad-btn {
+      font-family: 'Patrick Hand', cursive, sans-serif;
+      border: 3px solid #484848;
+      background: rgba(253, 253, 251, 0.78);
+      backdrop-filter: blur(2px);
+      color: #333;
+      box-shadow: 3px 4px 0px rgba(72, 72, 72, 0.85);
+      transition: transform 0.06s ease, box-shadow 0.06s ease, background-color 0.06s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .touch-pad-btn.is-pressed,
+    .touch-pad-btn:active {
+      transform: translate(2px, 3px) scale(0.96);
+      box-shadow: 1px 1px 0px rgba(72, 72, 72, 0.85);
+      background: rgba(235, 233, 224, 0.94);
+    }
+    .move-btn {
+      border-radius: 22px 26px 24px 28px / 26px 22px 28px 24px;
+    }
+    .action-btn {
+      border-radius: 9999px;
+      background: rgba(255, 244, 228, 0.84);
+      border-color: #4a3b2c;
+      box-shadow: 3px 4px 0px rgba(74, 59, 44, 0.85);
+    }
+    .action-btn.is-pressed,
+    .action-btn:active {
+      background: rgba(255, 196, 120, 0.92);
+      box-shadow: 1px 1px 0px rgba(74, 59, 44, 0.85);
+    }
+
+    /* Safe area padding for notched phones */
+    #mobile-controls {
+      padding-left: max(14px, env(safe-area-inset-left));
+      padding-right: max(14px, env(safe-area-inset-right));
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
   </style>
 </head>
@@ -58,22 +102,75 @@
   <div id="paper-wrapper">
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Top-Left Minimalist Pencil HUD -->
-    <div id="top-hud" class="fixed top-3 left-4 z-10 flex flex-wrap items-center gap-3 pointer-events-auto">
-      <div class="px-3 py-1 bg-[#fdfdfb]/90 border-2 border-[#555] rounded-xl text-[#333] text-lg sm:text-xl shadow-[2px_2px_0_#666]">
+    <!-- Top-Left Minimalist Pencil HUD (Hearts drawn cleanly underneath on canvas) -->
+    <div id="top-hud" class="fixed top-2.5 left-3 sm:top-3 sm:left-4 z-10 flex flex-wrap items-center gap-2 sm:gap-3 pointer-events-auto">
+      <div class="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-[#fdfdfb]/90 border-2 border-[#555] rounded-xl text-[#333] text-base sm:text-xl shadow-[2px_2px_0_#666]">
         Stage: <span id="stageDisplay" class="font-bold">1</span> &nbsp;|&nbsp; Score: <span id="scoreDisplay" class="font-bold">0</span>
       </div>
-      <button id="muteBtn" class="sketch-btn px-3 py-1 text-base sm:text-lg" title="Toggle Sound">
+      <button id="muteBtn" class="sketch-btn px-2.5 py-0.5 sm:px-3 sm:py-1 text-sm sm:text-lg" title="Toggle Sound">
         🔊 Sound
       </button>
-      <button id="restartTopBtn" class="sketch-btn px-3 py-1 text-base sm:text-lg" title="Restart Game">
+      <button id="restartTopBtn" class="sketch-btn px-2.5 py-0.5 sm:px-3 sm:py-1 text-sm sm:text-lg" title="Restart Game">
         ↺ Reset
       </button>
     </div>
 
+    <!-- Top-Right Orientation Tip for Narrow Portrait Screens -->
+    <div id="portraitTip" class="sm:hidden fixed top-12 right-3 z-10 px-2.5 py-1 bg-[#fdfdfb]/85 border border-[#666] rounded-xl text-xs text-[#444] shadow-[1px_2px_0_#666] pointer-events-none">
+      ↻ Rotate phone for wider view
+    </div>
+
     <!-- Subtle Helper Hint Banner (fades after first action) -->
-    <div id="hintBanner" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 bg-[#fdfdfb]/95 border-2 border-[#555] rounded-2xl text-[#3a3a3a] text-base sm:text-lg text-center pointer-events-none shadow-[2px_2px_0_#666] transition-opacity duration-500 max-w-[90vw]">
-      Tap the <b>middle circle</b> of the top-right D-pad (or click middle / press <b>Space</b>) to <b>Jump & Throw Fireball!</b>
+    <div id="hintBanner" class="fixed top-14 sm:top-4 left-1/2 -translate-x-1/2 z-10 px-3.5 py-1 bg-[#fdfdfb]/95 border-2 border-[#555] rounded-2xl text-[#3a3a3a] text-sm sm:text-lg text-center pointer-events-none shadow-[2px_2px_0_#666] transition-opacity duration-500 max-w-[92vw]">
+      <span class="hidden md:inline">Use <b>Arrow Keys</b> to move &amp; <b>Space</b> to Jump + Fireball!</span>
+      <span class="md:hidden">Use <b>◀ ▶</b> to walk &amp; tap <b>JUMP &amp; FIRE</b> on the right!</span>
+    </div>
+
+    <!-- Ergonomic Two-Thumb Mobile Touch Controls (Bottom Corners) -->
+    <div id="mobile-controls" class="fixed inset-x-0 bottom-0 z-10 flex items-end justify-between pointer-events-none">
+      <!-- Bottom-Left: Sliding Multi-Touch Movement Pad (Left / Right) -->
+      <div id="moveZone" class="flex items-center gap-3 sm:gap-4 pointer-events-auto">
+        <button
+          id="btnLeft"
+          type="button"
+          aria-label="Move Left"
+          class="touch-pad-btn move-btn w-20 h-20 sm:w-24 sm:h-24 select-none"
+        >
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#3f3f3f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 7L11 18L23 29" />
+            <path d="M24 8.5L12.5 18L24 27.5" stroke-opacity="0.35" stroke-width="2" />
+          </svg>
+        </button>
+
+        <button
+          id="btnRight"
+          type="button"
+          aria-label="Move Right"
+          class="touch-pad-btn move-btn w-20 h-20 sm:w-24 sm:h-24 select-none"
+        >
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#3f3f3f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 7L25 18L13 29" />
+            <path d="M12 8.5L23.5 18L12 27.5" stroke-opacity="0.35" stroke-width="2" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Bottom-Right: Dedicated Jump & Fireball Action Button -->
+      <div class="pointer-events-auto">
+        <button
+          id="btnAction"
+          type="button"
+          aria-label="Jump and Throw Fireball"
+          class="touch-pad-btn action-btn w-24 h-24 sm:w-28 sm:h-28 flex-col gap-0.5 select-none"
+        >
+          <!-- Hand-drawn Flame + Up Arrow Icon -->
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#4a3525" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 5C18 5 26 12 26 20C26 24.4 22.4 28 18 28C13.6 28 10 24.4 10 20C10 17 11.8 14 13.5 12.5C13.2 15 14.5 16.5 16 16.5C15.2 12.5 18 5 18 5Z" fill="rgba(255, 145, 45, 0.55)" />
+            <path d="M18 24V15M18 15L14.5 18.5M18 15L21.5 18.5" stroke="#3b2818" stroke-width="2.6" />
+          </svg>
+          <span class="text-sm sm:text-base font-bold leading-none tracking-wide text-[#3b2818]">JUMP &amp; FIRE</span>
+        </button>
+      </div>
     </div>
 
     <!-- Modal Overlay for Game Over / Victory -->
@@ -90,15 +187,15 @@
 
   <script>
     /**
-     * SKETCHBOOK HERO
-     * A 2D hand-drawn pencil platformer modeled directly after the user's sketch:
+     * SKETCHBOOK HERO (Mobile & Desktop Edition)
      * - Left stick-figure boy with hair tuft & smile
      * - 3 platforms separated by 2 spike pits
      * - Tall chomping creature on the right high ledge
      * - Angled cannon on the lower step firing shaded cannonballs
      * - Warp pipe at bottom right
-     * - 3 hearts in bottom-left
-     * - D-pad in top-right with < ^ > v and a central circle button that triggers Jump + Fireball!
+     * - 3 hearts positioned cleanly in upper-left HUD so bottom corners are free for thumb controls
+     * - Ergonomic bottom-left Left/Right touch buttons (with thumb-slide multi-touch) + bottom-right Jump & Fireball button
+     * - Full desktop keyboard controls preserved (Arrows / WASD + Space)
      */
 
     const canvas = document.getElementById('gameCanvas');
@@ -115,7 +212,13 @@
     const modalSubtitle = document.getElementById('modalSubtitle');
     const modalActionBtn = document.getElementById('modalActionBtn');
 
-    // Virtual coordinate space (1280 x 720) scaled cleanly to any screen
+    // Mobile Touch Button references
+    const moveZone = document.getElementById('moveZone');
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnAction = document.getElementById('btnAction');
+
+    // Virtual coordinate space (1280 x 720)
     const VW = 1280;
     const VH = 720;
 
@@ -145,7 +248,6 @@
       gain.connect(audioCtx.destination);
 
       if (type === 'jumpFire') {
-        // Upward jump sweep + crisp fireball pop
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(220, now);
         osc.frequency.exponentialRampToValueAtTime(580, now + 0.16);
@@ -202,14 +304,13 @@
       hearts: 3,
       maxHearts: 3,
       gameOver: false,
-      stageTransitionTimer: 0,
       wobbleTime: 0,
       hintDismissed: false,
       fireCooldown: 0,
       screenShake: 0
     };
 
-    // Player Entity (matches the cute stick boy on the left of the sketch)
+    // Player Entity
     const player = {
       x: 200,
       y: 455,
@@ -220,30 +321,23 @@
       speed: 340,
       jumpPower: -720,
       onGround: false,
-      facing: 1, // 1 = right, -1 = left
+      facing: 1,
       walkCycle: 0,
       invulnTimer: 0,
       mouthOpenTimer: 0
     };
 
-    // Level Geometry matching the user's pencil sketch
-    // Platform 1 (left), Spike Pit 1, Platform 2 (middle), Spike Pit 2, Platform 3 (stepped right block), Bottom-right Pipe
+    // Level Geometry
     const platforms = [
-      // Left starting platform
       { id: 'plat1', x: 0, y: 455, w: 350, h: 265 },
-      // Middle rectangular block
       { id: 'plat2', x: 455, y: 455, w: 325, h: 265 },
-      // Right platform - higher left part (where chomper stands)
       { id: 'plat3_high', x: 870, y: 455, w: 185, h: 265 },
-      // Right platform - lower right step (where angled cannon sits)
       { id: 'plat3_low', x: 1055, y: 525, w: 110, h: 195 }
     ];
 
     // Spike pits between platforms
     const spikes = [
-      // Gap 1 spikes
       { x: 350, y: 655, w: 105, h: 65, count: 4 },
-      // Gap 2 spikes
       { x: 780, y: 655, w: 90, h: 65, count: 3 }
     ];
 
@@ -258,12 +352,11 @@
     // Chomping Monster on Platform 3 High Section
     const monster = {
       x: 935,
-      y: 455, // base at platform top
+      y: 455,
       headY: 315,
       hp: 2,
       maxHp: 2,
       alive: true,
-      respawnTimer: 0,
       chompPhase: 0,
       hitFlash: 0
     };
@@ -272,7 +365,7 @@
     const cannon = {
       x: 1105,
       y: 515,
-      angle: -Math.PI * 0.72, // pointing up-left just like in the drawing
+      angle: -Math.PI * 0.72,
       fireTimer: 1.6,
       fireInterval: 2.5,
       recoil: 0
@@ -283,7 +376,7 @@
     let cannonballs = [];
     let particles = [];
 
-    // Input Tracking
+    // Input Tracking (Keyboard + Touch)
     const keys = {
       left: false,
       right: false,
@@ -291,22 +384,9 @@
       down: false
     };
 
-    // Interactive Top-Right D-Pad Hitboxes (in Virtual 1280x720 coordinates)
-    const dpad = {
-      cx: 1125,
-      cy: 125,
-      centerRadius: 26,
-      up: { x: 1105, y: 38, w: 40, h: 52 },
-      down: { x: 1105, y: 160, w: 40, h: 52 },
-      left: { x: 1038, y: 105, w: 52, h: 40 },
-      right: { x: 1160, y: 105, w: 52, h: 40 },
-      pressed: {
-        center: 0,
-        up: false,
-        down: false,
-        left: false,
-        right: false
-      }
+    const touchInput = {
+      left: false,
+      right: false
     };
 
     function dismissHint() {
@@ -319,8 +399,8 @@
     // Core Action: Jump AND Throw Fireball!
     function triggerJumpAndFireball() {
       if (state.gameOver) return;
+      initAudio();
       dismissHint();
-      dpad.pressed.center = 0.18;
 
       let didAction = false;
 
@@ -332,7 +412,7 @@
         spawnPencilDust(player.x, player.y, 6);
       }
 
-      // Throw a fireball (can also fire mid-air with brief cooldown)
+      // Throw a fireball
       if (state.fireCooldown <= 0) {
         state.fireCooldown = 0.26;
         player.mouthOpenTimer = 0.25;
@@ -385,7 +465,6 @@
       }
     }
 
-    // Reset player position safely
     function resetPlayerPosition() {
       player.x = 175;
       player.y = 455;
@@ -396,7 +475,6 @@
       player.invulnTimer = 1.6;
     }
 
-    // Setup or advance stage
     function setupStage(stageNum) {
       state.stage = stageNum;
       stageDisplay.textContent = state.stage;
@@ -407,7 +485,6 @@
       cannonballs = [];
       particles = [];
 
-      // Reset monster & cannon scaled to stage
       monster.alive = true;
       monster.maxHp = Math.min(2 + Math.floor((stageNum - 1) / 2), 5);
       monster.hp = monster.maxHp;
@@ -435,85 +512,127 @@
       fullRestart();
     });
 
-    // Convert client screen coordinates to virtual 1280x720 coordinates
-    function getVirtualCoords(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = VW / rect.width;
-      const scaleY = VH / rect.height;
-      return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY
-      };
+    // =========================================================================
+    // ERGONOMIC MOBILE TOUCH CONTROLS (Multi-Touch + Smooth Thumb Slide)
+    // =========================================================================
+
+    function updateMoveButtonsVisual() {
+      btnLeft.classList.toggle('is-pressed', touchInput.left);
+      btnRight.classList.toggle('is-pressed', touchInput.right);
     }
 
-    function pointInRect(px, py, r) {
-      return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
-    }
+    // Evaluate all active touches inside the Left/Right movement zone so the user
+    // can slide their left thumb smoothly between Left and Right without lifting!
+    function evaluateMoveTouches(e) {
+      let leftActive = false;
+      let rightActive = false;
 
-    // Handle pointer/touch interactions on the canvas
-    function handlePointerDown(clientX, clientY) {
-      if (state.gameOver) return;
-      initAudio();
-      const pt = getVirtualCoords(clientX, clientY);
+      const leftRect = btnLeft.getBoundingClientRect();
+      const rightRect = btnRight.getBoundingClientRect();
+      // Generous hit padding around each arrow button
+      const pad = 12;
 
-      // 1. Check the middle circle button of the top-right D-Pad!
-      const distCenter = Math.hypot(pt.x - dpad.cx, pt.y - dpad.cy);
-      if (distCenter <= dpad.centerRadius + 10) {
-        triggerJumpAndFireball();
-        return;
+      for (let i = 0; i < e.touches.length; i++) {
+        const t = e.touches[i];
+        const x = t.clientX;
+        const y = t.clientY;
+
+        if (
+          x >= leftRect.left - pad &&
+          x <= leftRect.right + pad &&
+          y >= leftRect.top - pad &&
+          y <= leftRect.bottom + pad
+        ) {
+          leftActive = true;
+        }
+        if (
+          x >= rightRect.left - pad &&
+          x <= rightRect.right + pad &&
+          y >= rightRect.top - pad &&
+          y <= rightRect.bottom + pad
+        ) {
+          rightActive = true;
+        }
       }
 
-      // 2. Check the 4 directional buttons of the top-right D-Pad
-      if (pointInRect(pt.x, pt.y, dpad.left)) {
-        dpad.pressed.left = true;
+      touchInput.left = leftActive;
+      touchInput.right = rightActive;
+      updateMoveButtonsVisual();
+
+      if (leftActive || rightActive) {
+        initAudio();
         dismissHint();
-        return;
       }
-      if (pointInRect(pt.x, pt.y, dpad.right)) {
-        dpad.pressed.right = true;
-        dismissHint();
-        return;
-      }
-      if (pointInRect(pt.x, pt.y, dpad.up)) {
-        dpad.pressed.up = true;
-        triggerJumpAndFireball();
-        return;
-      }
-      if (pointInRect(pt.x, pt.y, dpad.down)) {
-        dpad.pressed.down = true;
-        dismissHint();
-        return;
-      }
-
-      // 3. Clicking/tapping anywhere in the main playfield/middle area ALSO jumps & throws a fireball!
-      triggerJumpAndFireball();
     }
 
-    function handlePointerUp() {
-      dpad.pressed.left = false;
-      dpad.pressed.right = false;
-      dpad.pressed.up = false;
-      dpad.pressed.down = false;
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      handlePointerDown(e.clientX, e.clientY);
-    });
-    window.addEventListener('mouseup', handlePointerUp);
-
-    canvas.addEventListener('touchstart', (e) => {
+    moveZone.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        const t = e.changedTouches[i];
-        handlePointerDown(t.clientX, t.clientY);
-      }
+      evaluateMoveTouches(e);
     }, { passive: false });
 
-    window.addEventListener('touchend', (e) => {
-      handlePointerUp();
+    moveZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      evaluateMoveTouches(e);
+    }, { passive: false });
+
+    moveZone.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      evaluateMoveTouches(e);
+    }, { passive: false });
+
+    moveZone.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      evaluateMoveTouches(e);
+    }, { passive: false });
+
+    // Also support mouse clicks on the Left/Right buttons for desktop testing
+    btnLeft.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      touchInput.left = true;
+      updateMoveButtonsVisual();
+      dismissHint();
+    });
+    btnRight.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      touchInput.right = true;
+      updateMoveButtonsVisual();
+      dismissHint();
+    });
+    window.addEventListener('mouseup', () => {
+      if (touchInput.left || touchInput.right) {
+        touchInput.left = false;
+        touchInput.right = false;
+        updateMoveButtonsVisual();
+      }
+      btnAction.classList.remove('is-pressed');
     });
 
-    // Keyboard Support (Arrow Keys / WASD + Space / Z / X / Enter)
+    // Dedicated Jump & Fireball Action Button (Bottom-Right)
+    btnAction.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      btnAction.classList.add('is-pressed');
+      triggerJumpAndFireball();
+    }, { passive: false });
+
+    btnAction.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      btnAction.classList.remove('is-pressed');
+    }, { passive: false });
+
+    btnAction.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      btnAction.classList.remove('is-pressed');
+    }, { passive: false });
+
+    btnAction.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      btnAction.classList.add('is-pressed');
+      triggerJumpAndFireball();
+    });
+
+    // =========================================================================
+    // DESKTOP KEYBOARD CONTROLS (Preserved: Arrows move, Space shoots/jumps)
+    // =========================================================================
     window.addEventListener('keydown', (e) => {
       if (state.gameOver) {
         if (e.code === 'Space' || e.code === 'Enter') {
@@ -561,6 +680,9 @@
 
       if (state.hearts <= 0) {
         state.gameOver = true;
+        touchInput.left = false;
+        touchInput.right = false;
+        updateMoveButtonsVisual();
         modalTitle.textContent = 'Out of Hearts!';
         modalSubtitle.textContent = `You reached Stage ${state.stage} with ${state.score} points!`;
         modalActionBtn.textContent = 'Play Again';
@@ -575,15 +697,14 @@
       state.wobbleTime += dt;
       if (state.fireCooldown > 0) state.fireCooldown -= dt;
       if (state.screenShake > 0) state.screenShake -= dt;
-      if (dpad.pressed.center > 0) dpad.pressed.center -= dt;
       if (player.invulnTimer > 0) player.invulnTimer -= dt;
       if (player.mouthOpenTimer > 0) player.mouthOpenTimer -= dt;
 
       if (state.gameOver) return;
 
-      // Horizontal Movement
-      const moveLeft = keys.left || dpad.pressed.left;
-      const moveRight = keys.right || dpad.pressed.right;
+      // Horizontal Movement (Desktop Keyboard OR Mobile Touch Buttons)
+      const moveLeft = keys.left || touchInput.left;
+      const moveRight = keys.right || touchInput.right;
 
       if (moveLeft && !moveRight) {
         player.vx = -player.speed;
@@ -607,14 +728,11 @@
       const prevX = player.x;
       player.x += player.vx * dt;
 
-      // Screen bounds
       if (player.x < 24) player.x = 24;
       if (player.x > VW - 24) player.x = VW - 24;
 
-      // Side collisions against platforms
       for (const p of platforms) {
         if (player.y > p.y + 8) {
-          // Player feet are below platform top surface -> check side wall
           if (prevX + 16 <= p.x && player.x + 16 > p.x) {
             player.x = p.x - 16;
             player.vx = 0;
@@ -627,7 +745,7 @@
 
       // Apply Gravity & Vertical Movement
       const prevY = player.y;
-      player.vy += 1720 * dt; // crisp platformer gravity
+      player.vy += 1720 * dt;
       player.y += player.vy * dt;
       player.onGround = false;
 
@@ -681,7 +799,6 @@
         monster.chompPhase += dt * (4.2 + state.stage * 0.35);
         if (monster.hitFlash > 0) monster.hitFlash -= dt;
 
-        // Check collision with player
         const distToMonster = Math.hypot(player.x - monster.x, (player.y - 45) - (monster.y - 75));
         if (distToMonster < 46) {
           damagePlayer();
@@ -697,7 +814,6 @@
         cannon.recoil = 10;
         playSound('cannon');
 
-        // Launch shaded cannonball diagonally up-left matching the sketch
         const speed = 340 + state.stage * 32;
         const launchAngle = -Math.PI * 0.72 + (Math.random() - 0.5) * 0.14;
         const muzzleX = cannon.x + Math.cos(launchAngle) * 34;
@@ -719,11 +835,11 @@
         const fb = fireballs[i];
         fb.x += fb.vx * dt;
         fb.y += fb.vy * dt;
-        fb.vy += 680 * dt; // slight bouncy arc
+        fb.vy += 680 * dt;
         fb.life -= dt;
         fb.spin += dt * 14;
 
-        // Bounce off platforms like classic fireballs!
+        // Bounce off platforms
         for (const p of platforms) {
           if (fb.x > p.x && fb.x < p.x + p.w && fb.y + fb.radius >= p.y && fb.y - fb.radius < p.y + 20 && fb.vy > 0) {
             fb.y = p.y - fb.radius;
@@ -753,7 +869,7 @@
           }
         }
 
-        // Hit incoming Cannonballs (can destroy cannonballs in mid-air!)
+        // Hit incoming Cannonballs
         let destroyedBall = false;
         for (let j = cannonballs.length - 1; j >= 0; j--) {
           const cb = cannonballs[j];
@@ -780,10 +896,9 @@
         const cb = cannonballs[i];
         cb.x += cb.vx * dt;
         cb.y += cb.vy * dt;
-        cb.vy += 420 * dt; // arc through the air
+        cb.vy += 420 * dt;
         cb.spin -= dt * 5;
 
-        // Check player collision
         const playerCenterY = player.y - 52;
         if (Math.hypot(cb.x - player.x, cb.y - playerCenterY) < cb.radius + 18) {
           cannonballs.splice(i, 1);
@@ -810,7 +925,6 @@
     // PENCIL SKETCH RENDERING HELPERS
     // =========================================================================
 
-    // Draws a slightly organic double-pass graphite pencil line
     function sketchLine(x1, y1, x2, y2, width = 2.6, color = '#4d4d4d') {
       ctx.save();
       ctx.strokeStyle = color;
@@ -825,7 +939,6 @@
       ctx.quadraticCurveTo(midX, midY, x2, y2);
       ctx.stroke();
 
-      // Faint second graphite stroke for authentic hand-drawn feel
       ctx.globalAlpha = 0.35;
       ctx.lineWidth = width * 0.7;
       ctx.beginPath();
@@ -836,7 +949,6 @@
     }
 
     function drawPaperLines() {
-      // Very subtle sketchbook paper texture lines
       ctx.save();
       ctx.strokeStyle = 'rgba(180, 185, 195, 0.14)';
       ctx.lineWidth = 1;
@@ -850,13 +962,11 @@
     }
 
     function drawPlatformsAndSpikes() {
-      // Fill platforms with clean paper white so they stand out cleanly
       ctx.fillStyle = '#fcfcf9';
       for (const p of platforms) {
         ctx.fillRect(p.x, p.y, p.w, p.h);
       }
 
-      // Draw exact outlines matching the sketch:
       // Platform 1 (left)
       sketchLine(0, 455, 350, 455, 3.2);
       sketchLine(350, 455, 350, 720, 3.2);
@@ -873,7 +983,7 @@
       sketchLine(1055, 525, 1165, 525, 3.2);
       sketchLine(1165, 525, 1165, 720, 3.2);
 
-      // Draw Jagged Spikes in Gap 1 and Gap 2
+      // Jagged Spikes in Gap 1 and Gap 2
       for (const s of spikes) {
         const stepW = s.w / s.count;
         ctx.save();
@@ -891,7 +1001,6 @@
         ctx.fillStyle = 'rgba(130, 130, 130, 0.16)';
         ctx.fill();
 
-        // Crisp pencil outline on the spikes
         for (let i = 0; i < s.count; i++) {
           const sx = s.x + i * stepW;
           const peakX = sx + stepW * 0.5;
@@ -906,13 +1015,11 @@
     function drawGoalPipe() {
       const { x, y, w, h } = goalPipe;
       ctx.save();
-      // Pipe body
       ctx.fillStyle = '#f5f5f0';
       ctx.fillRect(x + 8, y + 22, w - 16, h - 22);
       sketchLine(x + 8, y + 22, x + 8, y + h, 2.8);
       sketchLine(x + w - 8, y + 22, x + w - 8, y + h, 2.8);
 
-      // Pipe rim (oval/rounded rectangle at top just like bottom-right of drawing)
       ctx.fillStyle = '#eeeee8';
       ctx.beginPath();
       ctx.roundRect(x, y, w, 24, 10);
@@ -921,14 +1028,12 @@
       ctx.strokeStyle = '#4d4d4d';
       ctx.stroke();
 
-      // Inner dark pipe opening ellipse
       ctx.beginPath();
       ctx.ellipse(x + w / 2, y + 11, w * 0.36, 5.5, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(85, 85, 85, 0.25)';
       ctx.fill();
       ctx.stroke();
 
-      // Tiny arrow indicator above pipe
       const bob = Math.sin(state.wobbleTime * 4) * 4;
       ctx.fillStyle = '#555';
       ctx.font = '20px "Patrick Hand", cursive';
@@ -938,7 +1043,6 @@
     }
 
     function drawPlayer() {
-      // Blink when invulnerable
       if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 14) % 2 === 0) {
         return;
       }
@@ -949,14 +1053,14 @@
       const walkSwing = Math.sin(player.walkCycle) * 14;
       const armSwing = Math.cos(player.walkCycle) * 12;
 
-      // Legs (stick figure)
+      // Legs
       sketchLine(0, -34, -14 + walkSwing, 0, 2.8);
       sketchLine(0, -34, 14 - walkSwing, 0, 2.8);
 
-      // Torso (stick line)
+      // Torso
       sketchLine(0, -68, 0, -34, 2.8);
 
-      // Arms (stick lines, right arm reaches forward when throwing fireball)
+      // Arms
       if (player.mouthOpenTimer > 0) {
         sketchLine(0, -58, player.facing * 26, -64, 2.8);
         sketchLine(0, -58, -player.facing * 14, -44, 2.8);
@@ -965,12 +1069,11 @@
         sketchLine(0, -58, 18 + armSwing, -40, 2.8);
       }
 
-      // Head & Hair (matching the cute round head + swept hair tuft in sketch)
+      // Head & Hair
       ctx.save();
       ctx.translate(0, -90);
       if (player.facing === -1) ctx.scale(-1, 1);
 
-      // Round head fill
       ctx.fillStyle = '#fdfdfb';
       ctx.beginPath();
       ctx.arc(0, 0, 22, 0, Math.PI * 2);
@@ -979,14 +1082,12 @@
       ctx.strokeStyle = '#4d4d4d';
       ctx.stroke();
 
-      // Ear on left side
       ctx.beginPath();
       ctx.arc(-22, 2, 5.5, Math.PI * 0.4, Math.PI * 1.6);
       ctx.fillStyle = '#f4f4ef';
       ctx.fill();
       ctx.stroke();
 
-      // Swept-back hair tuft on top (shaded with graphite)
       ctx.beginPath();
       ctx.moveTo(-21, -4);
       ctx.quadraticCurveTo(-24, -27, 4, -27);
@@ -998,7 +1099,6 @@
       ctx.fill();
       ctx.stroke();
 
-      // Two cute vertical oval eyes
       ctx.fillStyle = '#3f3f3f';
       ctx.beginPath();
       ctx.ellipse(-3, 0, 2.3, 4.5, 0, 0, Math.PI * 2);
@@ -1007,7 +1107,6 @@
       ctx.ellipse(8, 0, 2.3, 4.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Happy smile (or open 'O' when firing a fireball!)
       ctx.beginPath();
       if (player.mouthOpenTimer > 0) {
         ctx.arc(3, 10, 4, 0, Math.PI * 2);
@@ -1025,15 +1124,13 @@
       if (!monster.alive) return;
 
       ctx.save();
-      const chompAngle = (Math.sin(monster.chompPhase) + 1) * 0.24; // 0 to 0.48 rad
+      const chompAngle = (Math.sin(monster.chompPhase) + 1) * 0.24;
       const sway = Math.sin(monster.chompPhase * 0.5) * 4;
 
-      // Long neck rising out of Platform 3
       ctx.lineWidth = 2.8;
       ctx.strokeStyle = monster.hitFlash > 0 ? '#d9534f' : '#4d4d4d';
       ctx.fillStyle = '#fafaf6';
 
-      // Neck tubes
       ctx.beginPath();
       ctx.moveTo(monster.x - 10, monster.y);
       ctx.quadraticCurveTo(monster.x - 10 + sway, 385, monster.x - 12 + sway, 332);
@@ -1042,11 +1139,9 @@
       ctx.fill();
       ctx.stroke();
 
-      // Chomping Head facing left (just like the sketch!)
       ctx.save();
       ctx.translate(monster.x - 4 + sway, 318);
 
-      // Upper jaw
       ctx.save();
       ctx.rotate(chompAngle);
       ctx.beginPath();
@@ -1059,13 +1154,11 @@
       ctx.fill();
       ctx.stroke();
 
-      // Upper teeth
       sketchLine(-28, -8, -24, -1, 2);
       sketchLine(-20, -7, -16, 0, 2);
       sketchLine(-12, -6, -9, 1, 2);
       ctx.restore();
 
-      // Lower jaw
       ctx.save();
       ctx.rotate(-chompAngle);
       ctx.beginPath();
@@ -1078,14 +1171,12 @@
       ctx.fill();
       ctx.stroke();
 
-      // Lower teeth
       sketchLine(-25, 8, -21, 1, 2);
       sketchLine(-17, 7, -13, 0, 2);
       ctx.restore();
 
       ctx.restore();
 
-      // Small HP indicator dots above monster if maxHp > 1
       for (let h = 0; h < monster.maxHp; h++) {
         ctx.beginPath();
         ctx.arc(monster.x - 12 + h * 14, 275, 4.5, 0, Math.PI * 2);
@@ -1106,7 +1197,6 @@
       ctx.translate(cannon.x + recoilX, cannon.y + recoilY);
       ctx.rotate(cannon.angle);
 
-      // Shaded graphite barrel tilted up-left on the lower step (matching sketch)
       ctx.beginPath();
       ctx.roundRect(-22, -20, 48, 40, 8);
       ctx.fillStyle = 'rgba(105, 105, 105, 0.48)';
@@ -1115,7 +1205,6 @@
       ctx.strokeStyle = '#4d4d4d';
       ctx.stroke();
 
-      // Cannon mouth rim
       ctx.beginPath();
       ctx.ellipse(24, 0, 7, 20, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(70, 70, 70, 0.55)';
@@ -1131,7 +1220,6 @@
         ctx.translate(cb.x, cb.y);
         ctx.rotate(cb.spin);
 
-        // Dark graphite-shaded round boulder/cannonball
         ctx.beginPath();
         ctx.arc(0, 0, cb.radius, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(85, 85, 85, 0.72)';
@@ -1140,7 +1228,6 @@
         ctx.strokeStyle = '#3f3f3f';
         ctx.stroke();
 
-        // Pencil cross-hatch shading lines inside the ball
         ctx.strokeStyle = 'rgba(45, 45, 45, 0.45)';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1162,7 +1249,6 @@
         ctx.translate(fb.x, fb.y);
         ctx.rotate(fb.spin);
 
-        // Sketchy warm flame aura + pencil-drawn fireball swirl
         ctx.beginPath();
         for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
@@ -1179,7 +1265,6 @@
         ctx.strokeStyle = '#4a3525';
         ctx.stroke();
 
-        // Inner bright core
         ctx.beginPath();
         ctx.arc(0, 0, fb.radius * 0.45, 0, Math.PI * 2);
         ctx.fillStyle = '#fff3b0';
@@ -1202,11 +1287,11 @@
       }
     }
 
-    // Bottom-Left 3 Hand-Drawn Hearts (exact match to sketch)
+    // 3 Hand-Drawn Hearts positioned cleanly in the upper-left HUD (above playfield & out of touch-button way)
     function drawHeartsHUD() {
-      const startX = 95;
-      const startY = 642;
-      const spacing = 58;
+      const startX = 48;
+      const startY = 98;
+      const spacing = 54;
 
       for (let i = 0; i < state.maxHearts; i++) {
         const hx = startX + i * spacing;
@@ -1216,15 +1301,15 @@
         ctx.save();
         ctx.translate(hx, hy);
         ctx.beginPath();
-        ctx.moveTo(0, 16);
-        ctx.bezierCurveTo(-24, -2, -26, -24, -10, -24);
-        ctx.bezierCurveTo(-2, -24, 0, -14, 0, -12);
-        ctx.bezierCurveTo(0, -14, 2, -24, 10, -24);
-        ctx.bezierCurveTo(26, -24, 24, -2, 0, 16);
+        ctx.moveTo(0, 15);
+        ctx.bezierCurveTo(-22, -2, -24, -22, -9, -22);
+        ctx.bezierCurveTo(-2, -22, 0, -13, 0, -11);
+        ctx.bezierCurveTo(0, -13, 2, -22, 9, -22);
+        ctx.bezierCurveTo(24, -22, 22, -2, 0, 15);
         ctx.closePath();
 
         if (isFull) {
-          ctx.fillStyle = 'rgba(225, 85, 85, 0.25)';
+          ctx.fillStyle = 'rgba(225, 85, 85, 0.28)';
           ctx.fill();
         }
         ctx.lineWidth = 2.8;
@@ -1234,65 +1319,8 @@
       }
     }
 
-    // Top-Right Hand-Drawn D-Pad with Center Circle Button (exact match to sketch)
-    function drawTopRightDpad() {
-      ctx.save();
-
-      // Helper to draw each directional rectangle
-      function drawDirBox(rect, label, active) {
-        ctx.save();
-        ctx.fillStyle = active ? 'rgba(90, 90, 90, 0.22)' : 'rgba(253, 253, 251, 0.85)';
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#4d4d4d';
-        ctx.font = 'bold 24px "Patrick Hand", cursive';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 1);
-        ctx.restore();
-      }
-
-      // Draw ^, v, <, > boxes matching the sketch's cross layout
-      drawDirBox(dpad.up, '^', dpad.pressed.up || keys.up);
-      drawDirBox(dpad.down, 'v', dpad.pressed.down || keys.down);
-      drawDirBox(dpad.left, '<', dpad.pressed.left || keys.left);
-      drawDirBox(dpad.right, '>', dpad.pressed.right || keys.right);
-
-      // Draw the CENTER CIRCLE BUTTON inside the D-pad (Click for Jump + Fireball!)
-      const pulse = 1 + Math.sin(state.wobbleTime * 5) * 0.06;
-      const isCenterActive = dpad.pressed.center > 0;
-
-      ctx.save();
-      ctx.translate(dpad.cx, dpad.cy);
-      ctx.scale(isCenterActive ? 0.9 : pulse, isCenterActive ? 0.9 : pulse);
-
-      ctx.beginPath();
-      ctx.arc(0, 0, dpad.centerRadius - 5, 0, Math.PI * 2);
-      ctx.fillStyle = isCenterActive ? 'rgba(255, 145, 45, 0.55)' : 'rgba(255, 175, 85, 0.25)';
-      ctx.fill();
-      ctx.lineWidth = 2.6;
-      ctx.strokeStyle = '#4d4d4d';
-      ctx.stroke();
-
-      // Tiny label underneath D-pad so user knows the middle button jumps & shoots
-      ctx.restore();
-
-      ctx.fillStyle = '#555';
-      ctx.font = '18px "Patrick Hand", cursive';
-      ctx.textAlign = 'center';
-      ctx.fillText('Tap ○ : Jump & Fire!', dpad.cx, dpad.down.y + dpad.down.h + 22);
-
-      ctx.restore();
-    }
-
     // Main Render Loop
     function render() {
-      // Match canvas backing resolution to display size with crisp DPI scaling
       const dpr = window.devicePixelRatio || 1;
       const displayW = canvas.clientWidth;
       const displayH = canvas.clientHeight;
@@ -1304,10 +1332,8 @@
       ctx.save();
       ctx.scale(canvas.width / VW, canvas.height / VH);
 
-      // Clear paper background
       ctx.clearRect(0, 0, VW, VH);
 
-      // Apply subtle camera shake on damage
       if (state.screenShake > 0) {
         const mag = state.screenShake * 24;
         ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
@@ -1323,12 +1349,10 @@
       drawPlayer();
       drawParticles();
       drawHeartsHUD();
-      drawTopRightDpad();
 
       ctx.restore();
     }
 
-    // Fixed-timestep friendly animation loop
     let lastTime = 0;
     function gameLoop(timestamp) {
       if (!lastTime) lastTime = timestamp;
